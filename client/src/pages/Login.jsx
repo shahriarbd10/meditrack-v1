@@ -2,14 +2,16 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
-import "../../src/index.css"; 
+import jwt_decode from "jwt-decode";  // Static import to fix import issues
+import "../../src/index.css";
 
-export default function AuthPage() {
+export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
+  // Normal login handler
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -25,6 +27,7 @@ export default function AuthPage() {
     }
   };
 
+  // Register handler (fixed role 'pharmacy' here)
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
@@ -32,7 +35,7 @@ export default function AuthPage() {
         name: form.name,
         email: form.email,
         password: form.password,
-        role: "pharmacy", // fixed role for registration here
+        role: "pharmacy",
       });
       setMessage("Registration successful! Please login.");
       setIsLogin(true);
@@ -42,13 +45,32 @@ export default function AuthPage() {
     }
   };
 
+  // Google login handler
   const handleGoogleSuccess = async (credentialResponse) => {
-    const { default: jwt_decode } = await import("jwt-decode");
-    const decoded = jwt_decode(credentialResponse.credential);
-    localStorage.setItem("token", credentialResponse.credential);
-    localStorage.setItem("user", JSON.stringify(decoded));
-    setMessage("Google Login successful!");
-    navigate("/dashboard");
+    try {
+      const decoded = jwt_decode(credentialResponse.credential);
+      const email = decoded.email;
+      const name = decoded.name;
+
+      // Backend call to check or create user
+      const res = await axios.post("http://localhost:5000/api/auth/google-login", {
+        email,
+        name,
+      });
+
+      if (res.data.user && res.data.user.role && res.data.user.role !== "normal") {
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+        navigate("/dashboard"); // role-based dashboard redirect
+      } else {
+        localStorage.setItem("token", res.data.token);
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+        navigate("/dashboard/normal"); // normal user dashboard
+      }
+    } catch (error) {
+      console.error("Google login error:", error);
+      setMessage("Google login failed");
+    }
   };
 
   return (
@@ -58,9 +80,7 @@ export default function AuthPage() {
           <h2 className="text-3xl font-bold text-center mb-6">
             {isLogin ? "Login" : "Register as Pharmacy"}
           </h2>
-          {message && (
-            <p className="text-center mb-4 text-red-600">{message}</p>
-          )}
+          {message && <p className="text-center mb-4 text-red-600">{message}</p>}
 
           {isLogin ? (
             <form onSubmit={handleLogin} className="space-y-4">
@@ -69,9 +89,7 @@ export default function AuthPage() {
                 placeholder="Email"
                 className="input input-bordered w-full"
                 value={form.email}
-                onChange={(e) =>
-                  setForm({ ...form, email: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
               />
               <input
@@ -79,9 +97,7 @@ export default function AuthPage() {
                 placeholder="Password"
                 className="input input-bordered w-full"
                 value={form.password}
-                onChange={(e) =>
-                  setForm({ ...form, password: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
               />
               <button className="btn btn-primary w-full">Login</button>
@@ -93,9 +109,7 @@ export default function AuthPage() {
                 placeholder="Full Name"
                 className="input input-bordered w-full"
                 value={form.name}
-                onChange={(e) =>
-                  setForm({ ...form, name: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
               />
               <input
@@ -103,9 +117,7 @@ export default function AuthPage() {
                 placeholder="Email"
                 className="input input-bordered w-full"
                 value={form.email}
-                onChange={(e) =>
-                  setForm({ ...form, email: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
               />
               <input
@@ -113,9 +125,7 @@ export default function AuthPage() {
                 placeholder="Password"
                 className="input input-bordered w-full"
                 value={form.password}
-                onChange={(e) =>
-                  setForm({ ...form, password: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
               />
               <button className="btn btn-success w-full">Register</button>
@@ -123,6 +133,7 @@ export default function AuthPage() {
           )}
 
           <div className="divider">OR</div>
+
           <div className="flex justify-center">
             <GoogleLogin
               onSuccess={handleGoogleSuccess}

@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
 import StaffDashboard from "./pages/staff/StaffDashboard";
+import NormalDashboard from "./pages/NormalDashboard";
 
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/dashboard/normal" element={<NormalDashboard />} />
         <Route path="/dashboard" element={<Dashboard />} />
 
         <Route
@@ -24,14 +26,8 @@ function App() {
             </AdminProtectedRoute>
           }
         />
-        <Route
-          path="/dashboard/pharmacy"
-          element={<PharmacyDashboard />}
-        />
-        <Route
-          path="/dashboard/staff"
-          element={<StaffDashboard />}
-        />
+        <Route path="/dashboard/pharmacy" element={<PharmacyDashboard />} />
+        <Route path="/dashboard/staff" element={<StaffDashboard />} />
       </Routes>
     </Router>
   );

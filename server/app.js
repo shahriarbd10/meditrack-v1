@@ -29,6 +29,9 @@ app.use("/api/admin", adminStatsRoutes);
 const staffRoutes = require("./routes/staff");
 app.use("/api/staff", staffRoutes);
 
+const authGoogleRoutes = require("./routes/authGoogle");
+app.use("/api/auth", authGoogleRoutes);
+
 
 
 // Start server

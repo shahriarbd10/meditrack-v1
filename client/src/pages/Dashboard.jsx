@@ -8,7 +8,7 @@ export default function Dashboard() {
     const user = JSON.parse(localStorage.getItem("user"));
 
     if (!user) {
-      navigate("/"); // No user info, go to login
+      navigate("/");
       return;
     }
 
@@ -23,7 +23,7 @@ export default function Dashboard() {
         navigate("/dashboard/staff");
         break;
       default:
-        navigate("/"); // Unknown role, back to login
+        navigate("/dashboard/normal");
     }
   }, [navigate]);
 
