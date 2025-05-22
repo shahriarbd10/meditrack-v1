@@ -1,22 +1,32 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
-function MedicineCard({ name, price, discount, image }) {
+export default function MedicineCard({ medicine, onDelete }) {
   return (
-<div class="card bg-base-100 w-96 shadow-sm">
-  <figure>
-    <img
-      src="https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp"
-      alt="Shoes" />
-  </figure>
-  <div class="card-body">
-    <h2 class="card-title">Card Title</h2>
-    <p>A card component has a figure, a body part, and inside body there are title and actions parts</p>
-    <div class="card-actions justify-end">
-      <button class="btn btn-primary">Buy Now</button>
+    <div className="card bg-base-100 w-72 shadow-sm">
+      <figure>
+        <img src={medicine.picture} alt={medicine.name} className="h-40 w-full object-cover" />
+      </figure>
+      <div className="card-body">
+        <h2 className="card-title">
+          {medicine.name}
+          <div className="badge badge-secondary ml-2">{medicine.form}</div>
+        </h2>
+        <p>Genre: {medicine.genericName}</p>
+        <p>Amount: {medicine.amount}</p>
+        <p>Price: ${medicine.price - (medicine.discount || 0)}</p>
+        <div className="card-actions justify-end">
+          <Link to={`/medicine-details/${medicine._id}`} className="btn btn-info btn-sm">
+            Details
+          </Link>
+          <Link to={`/edit-medicine/${medicine._id}`} className="btn btn-primary btn-sm">
+            Edit
+          </Link>
+          <button onClick={() => onDelete(medicine._id)} className="btn btn-error btn-sm">
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
   );
 }
-
-export default MedicineCard;

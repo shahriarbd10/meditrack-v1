@@ -1,16 +1,16 @@
+// components/AdminProtectedRoute.jsx
+import React from "react";
 import { Navigate } from "react-router-dom";
 
-export default function AdminProtectedRoute({ children }) {
-  const token = localStorage.getItem("token");
+const AdminProtectedRoute = ({ children }) => {
   const user = JSON.parse(localStorage.getItem("user"));
 
-  if (!token || !user) {
+  // If no user or user is not admin, redirect to login
+  if (!user || user.role !== "admin") {
     return <Navigate to="/" />;
   }
 
-  if (user.role !== "admin") {
-    return <Navigate to="/" />; // Or a "Not authorized" page
-  }
-
   return children;
-}
+};
+
+export default AdminProtectedRoute;
