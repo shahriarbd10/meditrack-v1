@@ -1,12 +1,25 @@
+// server/routes/medicine.js
 const express = require("express");
 const Medicine = require("../models/Medicine");
 const router = express.Router();
 
-// Get all medicines
+// Get all medicines with pagination
 router.get("/", async (req, res) => {
   try {
-    const medicines = await Medicine.find();
-    res.json(medicines);
+    // Parse pagination query params or default values
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 8;
+    const skip = (page - 1) * limit;
+
+    const totalMedicines = await Medicine.countDocuments();
+    const medicines = await Medicine.find()
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 }); // optional: newest first
+
+    const totalPages = Math.ceil(totalMedicines / limit);
+
+    res.json({ medicines, totalPages });
   } catch (err) {
     res.status(500).json({ msg: "Error fetching medicines", error: err.message });
   }

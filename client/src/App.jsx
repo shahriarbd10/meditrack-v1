@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AddMedicine from "./pages/AddMedicine";
 import EditMedicine from "./pages/EditMedicine";
-import MedicineDetails from "./pages/MedicineDetails";
+import MedicineInfo from "./pages/MedicineInfo"; // Medicine details page
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -10,14 +11,16 @@ import StaffDashboard from "./pages/staff/StaffDashboard";
 import NormalDashboard from "./pages/NormalDashboard";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
+import Homepage from "./components/Home/Homepage";
 
 function App() {
   return (
     <Router>
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<Homepage />} /> {/* Homepage at root */}
+        <Route path="/login" element={<Login />} /> {/* Login */}
+        <Route path="/register" element={<Register />} /> {/* Register */}
 
         {/* Entry route that redirects based on user role */}
         <Route path="/dashboard" element={<Dashboard />} />
@@ -39,10 +42,26 @@ function App() {
         <Route path="/dashboard/pharmacy" element={<PharmacyDashboard />} />
         <Route path="/dashboard/staff" element={<StaffDashboard />} />
 
-        {/* Medicine CRUD routes */}
-        <Route path="/add-medicine" element={<AddMedicine />} />
-        <Route path="/edit-medicine/:id" element={<EditMedicine />} />
-        <Route path="/medicine-details/:id" element={<MedicineDetails />} />
+        {/* Medicine CRUD routes - Protected */}
+        <Route
+          path="/add-medicine"
+          element={
+            <AdminProtectedRoute>
+              <AddMedicine />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/edit-medicine/:id"
+          element={
+            <AdminProtectedRoute>
+              <EditMedicine />
+            </AdminProtectedRoute>
+          }
+        />
+
+        {/* Medicine details route - Public */}
+        <Route path="/medicine-details/:id" element={<MedicineInfo />} />
       </Routes>
     </Router>
   );
