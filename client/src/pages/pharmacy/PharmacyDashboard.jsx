@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 export default function PharmacyDashboard() {
-  const [pharmacy, setPharmacy] = useState(null); // Current logged in pharmacy user
+  const [pharmacy, setPharmacy] = useState(null);
   const [staffList, setStaffList] = useState([]);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [message, setMessage] = useState("");
@@ -13,13 +13,20 @@ export default function PharmacyDashboard() {
     const user = JSON.parse(localStorage.getItem("user"));
     setPharmacy(user);
 
-    // Fetch staff for this pharmacy (if linked by pharmacyId)
     async function fetchStaff() {
       try {
-        const res = await axios.get("http://localhost:5000/api/staff"); // Adjust API to filter by pharmacy if needed
+        if (!user?._id && !user?.id) {
+          setLoading(false);
+          return;
+        }
+        // Fetch staff linked to this pharmacy by pharmacyId query param
+        const res = await axios.get(
+          `http://localhost:5000/api/staff?pharmacyId=${user._id || user.id}`
+        );
         setStaffList(res.data);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch staff:", err);
+        setMessage("Failed to load staff list");
       } finally {
         setLoading(false);
       }
@@ -31,19 +38,30 @@ export default function PharmacyDashboard() {
   const handleAddStaff = async (e) => {
     e.preventDefault();
 
+    if (!pharmacy?._id && !pharmacy?.id) {
+      setMessage("Pharmacy ID not found. Cannot add staff.");
+      return;
+    }
+
+    const payload = {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      pharmacyId: pharmacy._id || pharmacy.id,
+    };
+
     try {
-      const payload = {
-        ...form,
-        pharmacyId: pharmacy?.id || pharmacy?._id, // Use your user ID key here
-      };
-      await axios.post("http://localhost:5000/api/staff", payload);
+      const res = await axios.post("http://localhost:5000/api/staff", payload);
       setMessage("Staff user added successfully");
       setForm({ name: "", email: "", password: "" });
-      // Refresh staff list
-      const res = await axios.get("http://localhost:5000/api/staff");
-      setStaffList(res.data);
+      setStaffList((prev) => [...prev, res.data.user || res.data]); // Add newly created staff to list
     } catch (err) {
-      setMessage(err.response?.data?.msg || "Failed to add staff");
+      console.error("Failed to add staff:", err.response?.data || err.message);
+      setMessage(
+        err.response?.data?.msg ||
+          err.response?.data?.message ||
+          "Failed to add staff"
+      );
     }
   };
 
@@ -54,6 +72,7 @@ export default function PharmacyDashboard() {
       setMessage("Staff deleted successfully");
     } catch (err) {
       setMessage("Failed to delete staff");
+      console.error("Delete staff error:", err);
     }
   };
 

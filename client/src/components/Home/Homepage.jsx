@@ -49,7 +49,8 @@ export default function Homepage() {
           </Link>
         </div>
         <div className="flex-none space-x-2">
-          <Link to="/register" className="btn btn-outline btn-sm">
+          {/* Pass role=pharmacy query param here */}
+          <Link to="/register?role=pharmacy" className="btn btn-outline btn-sm">
             Register
           </Link>
           <Link to="/login" className="btn btn-primary btn-sm">
@@ -68,7 +69,8 @@ export default function Homepage() {
           staff, and monitor sales all in one platform.
         </p>
         <div className="space-x-4">
-          <Link to="/register" className="btn btn-primary btn-lg">
+          {/* Pass role=pharmacy query param here as well */}
+          <Link to="/register?role=pharmacy" className="btn btn-primary btn-lg">
             Get Started
           </Link>
           <Link to="/login" className="btn btn-outline btn-lg">
@@ -119,7 +121,7 @@ export default function Homepage() {
                     <p className="text-xs font-semibold">${med.price}</p>
                     <div className="card-actions justify-end mt-1">
                       <Link
-                        to={`/medicine-details/${med._id}`}
+                        to={`/medicine-info/${med._id}`}
                         className="btn btn-primary btn-xs px-3 py-1"
                       >
                         Details

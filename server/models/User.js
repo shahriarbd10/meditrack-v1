@@ -6,16 +6,24 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: function() {
-      // Only require password if role is NOT 'normal' (OAuth users)
+      // Only require password if role is NOT 'normal' (OAuth or guest users)
       return this.role !== "normal";
     }
   },
   role: {
     type: String,
-    enum: ["admin", "pharmacy", "staff", "normal"], // add "normal" here
+    enum: ["admin", "pharmacy", "staff", "normal"],
     required: true,
   },
-  // other fields...
-});
+  pharmacyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",  // Reference to User model (pharmacy user)
+    required: function() {
+      // Only required if role is staff
+      return this.role === "staff";
+    },
+  },
+  // other fields as needed...
+}, { timestamps: true });
 
 module.exports = mongoose.model("User", UserSchema);

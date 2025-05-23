@@ -3,14 +3,27 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 
-// Middleware to verify pharmacy user (add your auth middleware here)
+// GET staff filtered by pharmacyId
+router.get("/", async (req, res) => {
+  try {
+    const { pharmacyId } = req.query;
+    if (!pharmacyId) {
+      return res.status(400).json({ msg: "pharmacyId query parameter is required" });
+    }
+    const staffUsers = await User.find({ role: "staff", pharmacyId });
+    res.json(staffUsers);
+  } catch (err) {
+    res.status(500).json({ msg: "Server error fetching staff", error: err.message });
+  }
+});
 
+// POST create new staff user
 router.post("/", async (req, res) => {
   const { name, email, password, pharmacyId } = req.body;
 
   try {
     const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ msg: "Staff user exists" });
+    if (exists) return res.status(400).json({ msg: "Staff user already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -19,13 +32,13 @@ router.post("/", async (req, res) => {
       email,
       password: hashedPassword,
       role: "staff",
-      pharmacyId, // link to pharmacy user if needed
+      pharmacyId,
     });
 
     await staffUser.save();
-    res.status(201).json({ msg: "Staff user created" });
+    res.status(201).json({ msg: "Staff user created", user: staffUser });
   } catch (err) {
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error", error: err.message });
   }
 });
 

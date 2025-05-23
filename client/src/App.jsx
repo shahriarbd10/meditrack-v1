@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AddMedicine from "./pages/AddMedicine";
 import EditMedicine from "./pages/EditMedicine";
-import MedicineInfo from "./pages/MedicineInfo"; // Medicine details page
+import MedicineDetails from "./pages/MedicineDetails";   // Admin details page
+import MedicineInfo from "./pages/MedicineInfo";         // Public details page
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -18,9 +18,9 @@ function App() {
     <Router>
       <Routes>
         {/* Public routes */}
-        <Route path="/" element={<Homepage />} /> {/* Homepage at root */}
-        <Route path="/login" element={<Login />} /> {/* Login */}
-        <Route path="/register" element={<Register />} /> {/* Register */}
+        <Route path="/" element={<Homepage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         {/* Entry route that redirects based on user role */}
         <Route path="/dashboard" element={<Dashboard />} />
@@ -60,8 +60,16 @@ function App() {
           }
         />
 
-        {/* Medicine details route - Public */}
-        <Route path="/medicine-details/:id" element={<MedicineInfo />} />
+        {/* Medicine details routes */}
+        <Route
+          path="/medicine-details/:id"
+          element={
+            <AdminProtectedRoute>
+              <MedicineDetails />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route path="/medicine-info/:id" element={<MedicineInfo />} />
       </Routes>
     </Router>
   );

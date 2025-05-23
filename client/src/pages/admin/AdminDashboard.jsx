@@ -19,8 +19,15 @@ export default function AdminDashboard() {
       try {
         const statsRes = await axios.get("http://localhost:5000/api/admin/stats");
         const medicinesRes = await axios.get("http://localhost:5000/api/medicines");
+
+        // Expecting { medicines: [...], totalPages: n }
+        if (medicinesRes.data && Array.isArray(medicinesRes.data.medicines)) {
+          setMedicines(medicinesRes.data.medicines);
+        } else {
+          setError("Failed to load medicines data. Response is not an array.");
+        }
+
         setStats(statsRes.data);
-        setMedicines(medicinesRes.data);
       } catch (err) {
         setError("Failed to load statistics or medicines.");
       } finally {
