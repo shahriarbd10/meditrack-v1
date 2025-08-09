@@ -1,0 +1,41 @@
+✅ Fix It by Changing DNS to Google or Cloudflare
+Here’s how to change your DNS server to a more reliable one (Google/Cloudflare):
+
+🔧 Windows 10/11 DNS Change Steps:
+Open Control Panel → Go to Network and Sharing Center
+
+Click on Change adapter settings (left menu)
+
+Right-click your active connection (Wi-Fi or Ethernet) → Properties
+
+Select Internet Protocol Version 4 (TCP/IPv4) → Click Properties
+
+At the bottom, choose:
+
+✅ "Use the following DNS server addresses"
+
+Preferred DNS server: 8.8.8.8
+
+Alternate DNS server: 1.1.1.1
+
+Click OK, then OK again to close all windows
+
+🔁 Now Flush DNS Cache
+After changing DNS, flush the old DNS cache:
+
+cmd
+Copy
+ipconfig /flushdns
+Then test it again:
+
+c
+Copy
+nslookup meditrackdb.9load8e.mongodb.net
+You should now see a successful DNS resolution with IP addresses listed.
+
+⚠️ Note: You Still Can’t Ping Atlas
+Even after fixing DNS, ping will likely still fail because MongoDB Atlas blocks ICMP (ping) requests.
+
+So use your database connection string in your app or mongo shell instead of trying to ping.
+
+Let me know if you want help testing MongoDB connection via Node.js, Python, or Mongo Compass.
