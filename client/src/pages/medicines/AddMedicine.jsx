@@ -1,8 +1,8 @@
-// src/pages/AddMedicine.jsx
+// src/pages/medicines/AddMedicine.jsx
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Sidebar"; // ✅ import Sidebar
+import Sidebar from "../../components/Sidebar";
 
 export default function AddMedicine() {
   const [medicine, setMedicine] = useState({
@@ -31,10 +31,10 @@ export default function AddMedicine() {
     e.preventDefault();
     try {
       await axios.post("http://localhost:5000/api/medicines/add", medicine);
-      navigate("/dashboard/admin/medicines/list"); // ✅ after adding, go to medicine list
+      navigate("/dashboard/admin/medicines/list");
     } catch (err) {
       console.error("Error adding medicine", err);
-      alert("Failed to add medicine");
+      alert("❌ Failed to add medicine. Please try again.");
     }
   };
 
@@ -45,19 +45,10 @@ export default function AddMedicine() {
 
       {/* Main Content */}
       <div className="flex-1 p-6">
-        <div className="max-w-5xl mx-auto bg-white shadow-lg rounded-xl p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-3xl font-bold text-primary">
-              ➕ Add New Medicine
-            </h2>
-            {/* ✅ Back button */}
-            <button
-              onClick={() => navigate("/dashboard/admin")}
-              className="btn btn-outline btn-sm"
-            >
-              ← Back to Dashboard
-            </button>
-          </div>
+        <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-xl p-8">
+          <h2 className="text-3xl font-bold text-primary mb-6 flex items-center gap-2">
+            💊 Add New Medicine
+          </h2>
 
           <form
             onSubmit={handleSubmit}
@@ -65,43 +56,46 @@ export default function AddMedicine() {
           >
             {/* Medicine Name */}
             <div>
-              <label className="label">Medicine Name *</label>
+              <label className="label font-semibold">Medicine Name *</label>
               <input
                 name="name"
                 value={medicine.name}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                placeholder="e.g. Paracetamol"
                 required
               />
             </div>
 
             {/* Generic Name */}
             <div>
-              <label className="label">Generic Name *</label>
+              <label className="label font-semibold">Generic Name *</label>
               <input
                 name="genericName"
                 value={medicine.genericName}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                placeholder="e.g. Acetaminophen"
                 required
               />
             </div>
 
             {/* Brand Name */}
             <div>
-              <label className="label">Brand Name *</label>
+              <label className="label font-semibold">Brand Name *</label>
               <input
                 name="brandName"
                 value={medicine.brandName}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                placeholder="e.g. Tylenol"
                 required
               />
             </div>
 
             {/* Price */}
             <div>
-              <label className="label">Price *</label>
+              <label className="label font-semibold">Price *</label>
               <input
                 name="price"
                 type="number"
@@ -109,13 +103,14 @@ export default function AddMedicine() {
                 value={medicine.price}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                placeholder="e.g. 10.50"
                 required
               />
             </div>
 
             {/* Discount */}
             <div>
-              <label className="label">Discount</label>
+              <label className="label font-semibold">Discount</label>
               <input
                 name="discount"
                 type="number"
@@ -123,12 +118,13 @@ export default function AddMedicine() {
                 value={medicine.discount}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                placeholder="e.g. 2.50"
               />
             </div>
 
             {/* Expiry Date */}
             <div>
-              <label className="label">Expiry Date *</label>
+              <label className="label font-semibold">Expiry Date *</label>
               <input
                 name="expiryDate"
                 type="date"
@@ -141,20 +137,21 @@ export default function AddMedicine() {
 
             {/* Total Units */}
             <div>
-              <label className="label">Total Units *</label>
+              <label className="label font-semibold">Total Units *</label>
               <input
                 name="totalUnits"
                 type="number"
                 value={medicine.totalUnits}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                placeholder="e.g. 500"
                 required
               />
             </div>
 
             {/* Unit Type */}
             <div>
-              <label className="label">Unit Type *</label>
+              <label className="label font-semibold">Unit Type *</label>
               <select
                 name="unitType"
                 value={medicine.unitType}
@@ -170,7 +167,7 @@ export default function AddMedicine() {
 
             {/* Buying Price */}
             <div>
-              <label className="label">Buying Price *</label>
+              <label className="label font-semibold">Buying Price *</label>
               <input
                 name="buyingPrice"
                 type="number"
@@ -178,13 +175,14 @@ export default function AddMedicine() {
                 value={medicine.buyingPrice}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                placeholder="For admin only"
                 required
               />
             </div>
 
             {/* Form */}
             <div>
-              <label className="label">Form *</label>
+              <label className="label font-semibold">Form *</label>
               <select
                 name="form"
                 value={medicine.form}
@@ -202,39 +200,41 @@ export default function AddMedicine() {
 
             {/* Picture URL */}
             <div>
-              <label className="label">Picture URL *</label>
+              <label className="label font-semibold">Picture URL *</label>
               <input
                 name="picture"
                 type="url"
                 value={medicine.picture}
                 onChange={handleChange}
                 className="input input-bordered w-full"
-                placeholder="Upload to Cloudinary and paste URL"
+                placeholder="Upload to Cloudinary and paste link"
                 required
               />
             </div>
 
             {/* Amount */}
             <div>
-              <label className="label">Amount (mg/ml) *</label>
+              <label className="label font-semibold">Amount (mg/ml) *</label>
               <input
                 name="amount"
                 value={medicine.amount}
                 onChange={handleChange}
                 className="input input-bordered w-full"
+                placeholder="e.g. 500mg"
                 required
               />
             </div>
 
             {/* Description */}
             <div className="md:col-span-2">
-              <label className="label">Description *</label>
+              <label className="label font-semibold">Description *</label>
               <textarea
                 name="description"
                 value={medicine.description}
                 onChange={handleChange}
                 className="textarea textarea-bordered w-full"
                 rows={4}
+                placeholder="Brief description of the medicine"
                 required
               />
             </div>
@@ -242,7 +242,7 @@ export default function AddMedicine() {
             {/* Submit */}
             <div className="md:col-span-2">
               <button type="submit" className="btn btn-primary w-full">
-                Save Medicine
+                ✅ Save Medicine
               </button>
             </div>
           </form>

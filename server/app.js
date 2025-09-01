@@ -9,29 +9,33 @@ const authRoutes = require("./routes/auth");
 const adminStatsRoutes = require("./routes/adminStats");
 const staffRoutes = require("./routes/staff");
 const authGoogleRoutes = require("./routes/authGoogle");
+const customerRoutes = require("./routes/customerRoutes"); // <-- ADDED
 
 dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"], // Vite dev server
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // Routes
 app.use("/api/medicines", medicineRoutes);
 app.use("/api/auth", authRoutes);
-app.use("/api/auth", authGoogleRoutes);  // Make sure this doesn't conflict with authRoutes
+app.use("/api/auth", authGoogleRoutes); // ensure unique subpaths inside these files
 app.use("/api/admin", adminStatsRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/customers", customerRoutes); // <-- ADDED
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGO_URI, {
-  // Note: these options are no longer necessary in Mongoose 6+, but kept for backward compatibility
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log("✅ MongoDB Connected"))
-.catch((err) => console.error("❌ MongoDB Connection Failed:", err));
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => console.error("❌ MongoDB Connection Failed:", err));
 
 // Start server
 const PORT = process.env.PORT || 5000;
