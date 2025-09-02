@@ -5,8 +5,7 @@ import { useState } from "react";
 function SidebarLink({ to, icon, label, onClick, className = "" }) {
   const location = useLocation();
   const isActive = location.pathname === to;
-  const base =
-    "px-4 py-3 flex items-center transition-colors duration-150 rounded-sm";
+  const base = "px-4 py-3 flex items-center transition-colors duration-150 rounded-sm";
   const active = "bg-gray-700 text-white cursor-default";
   const inactive = "hover:bg-gray-700 text-gray-300";
 
@@ -20,11 +19,7 @@ function SidebarLink({ to, icon, label, onClick, className = "" }) {
   }
 
   return (
-    <Link
-      to={to}
-      className={`${base} ${inactive} ${className}`}
-      onClick={onClick}
-    >
+    <Link to={to} className={`${base} ${inactive} ${className}`} onClick={onClick}>
       {icon}
       <span>{label}</span>
     </Link>
@@ -33,8 +28,12 @@ function SidebarLink({ to, icon, label, onClick, className = "" }) {
 
 export default function Sidebar() {
   const navigate = useNavigate();
+
+  // State for collapsible menus
   const [openCustomer, setOpenCustomer] = useState(true);
   const [openMedicine, setOpenMedicine] = useState(false);
+  const [openSupplier, setOpenSupplier] = useState(false);
+  const [openPurchase, setOpenPurchase] = useState(false);
 
   const handleLogout = () => {
     try {
@@ -57,14 +56,28 @@ export default function Sidebar() {
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
         strokeWidth="1.5" stroke="currentColor" className="w-4 mr-3">
         <path strokeLinecap="round" strokeLinejoin="round"
-          d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0Zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0Z" />
+          d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493..." />
       </svg>
     ),
     pills: (
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
         strokeWidth="1.5" stroke="currentColor" className="w-4 mr-3">
         <path strokeLinecap="round" strokeLinejoin="round"
-          d="M9 3.75A6.75 6.75 0 0115.75 10.5h0A6.75 6.75 0 119 3.75zm6.75 6.75h0A6.75 6.75 0 0122.5 17.25h0A6.75 6.75 0 0115.75 24h0a6.75 6.75 0 01-6.75-6.75h0a6.75 6.75 0 016.75-6.75z" />
+          d="M9 3.75A6.75 6.75 0 0115.75 10.5h0A6.75 6.75 0 119 3.75zm6.75 6.75..." />
+      </svg>
+    ),
+    supplier: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+        strokeWidth="1.5" stroke="currentColor" className="w-4 mr-3">
+        <path strokeLinecap="round" strokeLinejoin="round"
+          d="M16.5 7.5V6a4.5 4.5 0 10-9 0v1.5M3 10.5h18M5.25 10.5v9.75..." />
+      </svg>
+    ),
+    cart: (
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+        strokeWidth="1.5" stroke="currentColor" className="w-4 mr-3">
+        <path strokeLinecap="round" strokeLinejoin="round"
+          d="M2.25 3h1.386c.51 0 .955.343 1.09.835l.383..." />
       </svg>
     ),
     chevron: (open) => (
@@ -97,6 +110,17 @@ export default function Sidebar() {
     list: "/dashboard/admin/medicines/list",
   };
 
+  const SUPPLIER = {
+    add: "/dashboard/admin/suppliers/add",
+    list: "/dashboard/admin/suppliers/list",
+    ledger: "/dashboard/admin/suppliers/ledger",
+  };
+
+  const PURCHASE = {
+    add: "/dashboard/admin/purchases/add",
+    list: "/dashboard/admin/purchases/list",
+  };
+
   return (
     <aside className="hidden w-64 bg-gray-800 md:flex md:flex-col min-h-screen">
       {/* Header */}
@@ -110,26 +134,19 @@ export default function Sidebar() {
         <ul className="flex flex-col gap-1 mt-2">
           {/* Dashboard */}
           <li className="px-2">
-            <SidebarLink
-              to="/dashboard/admin"
-              icon={Icon.dashboard}
-              label="Dashboard"
-            />
+            <SidebarLink to="/dashboard/admin" icon={Icon.dashboard} label="Dashboard" />
           </li>
 
-          {/* Customers (collapsible) */}
+          {/* Customers */}
           <li className="px-2">
-            <button
-              onClick={() => setOpenCustomer((v) => !v)}
+            <button onClick={() => setOpenCustomer((v) => !v)}
               className={`w-full px-4 py-3 flex items-center rounded-sm text-white ${
                 openCustomer ? "bg-lime-600" : "bg-gray-700 hover:bg-gray-600"
-              }`}
-            >
+              }`}>
               {Icon.usersGroup}
               <span>Customer</span>
               {Icon.chevron(openCustomer)}
             </button>
-
             {openCustomer && (
               <ul className="mt-1 ml-4 border-l border-gray-700">
                 <li><SidebarLink to={CUSTOMER.add} label="Add Customer" className="pl-6 py-2" /></li>
@@ -141,19 +158,16 @@ export default function Sidebar() {
             )}
           </li>
 
-          {/* Medicines (collapsible) */}
+          {/* Medicines */}
           <li className="px-2">
-            <button
-              onClick={() => setOpenMedicine((v) => !v)}
+            <button onClick={() => setOpenMedicine((v) => !v)}
               className={`w-full px-4 py-3 flex items-center rounded-sm text-white ${
                 openMedicine ? "bg-lime-600" : "bg-gray-700 hover:bg-gray-600"
-              }`}
-            >
+              }`}>
               {Icon.pills}
               <span>Medicine</span>
               {Icon.chevron(openMedicine)}
             </button>
-
             {openMedicine && (
               <ul className="mt-1 ml-4 border-l border-gray-700">
                 <li><SidebarLink to={MEDICINE.addCategory} label="Add Category" className="pl-6 py-2" /></li>
@@ -169,12 +183,47 @@ export default function Sidebar() {
             )}
           </li>
 
+          {/* Suppliers */}
+          <li className="px-2">
+            <button onClick={() => setOpenSupplier((v) => !v)}
+              className={`w-full px-4 py-3 flex items-center rounded-sm text-white ${
+                openSupplier ? "bg-lime-600" : "bg-gray-700 hover:bg-gray-600"
+              }`}>
+              {Icon.supplier}
+              <span>Supplier</span>
+              {Icon.chevron(openSupplier)}
+            </button>
+            {openSupplier && (
+              <ul className="mt-1 ml-4 border-l border-gray-700">
+                <li><SidebarLink to={SUPPLIER.add} label="Add Supplier" className="pl-6 py-2" /></li>
+                <li><SidebarLink to={SUPPLIER.list} label="Supplier List" className="pl-6 py-2" /></li>
+                <li><SidebarLink to={SUPPLIER.ledger} label="Supplier Ledger" className="pl-6 py-2" /></li>
+              </ul>
+            )}
+          </li>
+
+          {/* Purchases */}
+          <li className="px-2">
+            <button onClick={() => setOpenPurchase((v) => !v)}
+              className={`w-full px-4 py-3 flex items-center rounded-sm text-white ${
+                openPurchase ? "bg-lime-600" : "bg-gray-700 hover:bg-gray-600"
+              }`}>
+              {Icon.cart}
+              <span>Purchase</span>
+              {Icon.chevron(openPurchase)}
+            </button>
+            {openPurchase && (
+              <ul className="mt-1 ml-4 border-l border-gray-700">
+                <li><SidebarLink to={PURCHASE.add} label="Add Purchase" className="pl-6 py-2" /></li>
+                <li><SidebarLink to={PURCHASE.list} label="Purchase List" className="pl-6 py-2" /></li>
+              </ul>
+            )}
+          </li>
+
+          {/* Logout */}
           <li className="flex-1" />
           <li className="px-4 py-4">
-            <button
-              onClick={handleLogout}
-              className="w-full btn btn-error btn-sm"
-            >
+            <button onClick={handleLogout} className="w-full btn btn-error btn-sm">
               Logout
             </button>
           </li>
