@@ -2,15 +2,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import Sidebar from "../../components/Sidebar"; // use the same shell as AdminDashboard
+import Sidebar from "../../components/Sidebar"; // same shell as AdminDashboard
 
-// Keep routes in sync with your router (Edit now uses top-level route like medicines)
+// Keep routes in sync with your router
 const CUSTOMER_ROUTES = {
   add: "/dashboard/admin/customers/add",
   list: "/dashboard/admin/customers/list",
   credit: "/dashboard/admin/customers/credit",
   paid: "/dashboard/admin/customers/paid",
-  edit: (id) => `/edit-customer/${id}`, // ✅ changed to top-level route
+  edit: (id) => `/edit-customer/${id}`, // top-level route
 };
 
 function Arrow({ dir }) {
@@ -166,11 +166,11 @@ export default function CustomerList() {
   };
 
   const goToAddCustomer = () => navigate(CUSTOMER_ROUTES.add);
-  const goToEditCustomer = (id) => navigate(CUSTOMER_ROUTES.edit(id)); // ✅ now /edit-customer/:id
+  const goToEditCustomer = (id) => navigate(CUSTOMER_ROUTES.edit(id));
 
   return (
     <div className="min-h-screen flex bg-base-200">
-      {/* Sidebar (consistent with AdminDashboard) */}
+      {/* Sidebar */}
       <Sidebar />
 
       {/* Main content */}
@@ -179,7 +179,9 @@ export default function CustomerList() {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-2xl md:text-4xl font-bold text-primary">Customer List</h2>
-            <p className="text-sm text-gray-500">Manage customers, balances, and quick actions.</p>
+            <p className="text-sm text-gray-500">
+              Manage customers, balances, and quick actions.
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -219,8 +221,9 @@ export default function CustomerList() {
 
         {/* Controls */}
         <div className="mb-4 flex flex-col gap-3 rounded-lg border bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Show</span>
+          {/* Page size (hide label on xs) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-600 hidden sm:inline">Show</span>
             <select
               className="rounded border px-2 py-1 text-sm"
               value={pageSize}
@@ -235,15 +238,16 @@ export default function CustomerList() {
                 </option>
               ))}
             </select>
-            <span className="text-sm text-gray-600">entries</span>
+            <span className="text-sm text-gray-600 hidden sm:inline">entries</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">Search:</span>
+          {/* Search */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-sm text-gray-600 hidden sm:inline">Search:</span>
             <input
               type="text"
               placeholder="Name, mobile, email, city…"
-              className="w-64 rounded border px-3 py-1.5 text-sm"
+              className="flex-1 sm:w-64 rounded border px-3 py-2 text-sm"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
@@ -253,8 +257,79 @@ export default function CustomerList() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
+        {/* Mobile cards (smaller than md) */}
+        <div className="grid grid-cols-1 gap-3 md:hidden">
+          {loading && (
+            <div className="rounded-lg border bg-white p-4 text-center shadow-sm">
+              Loading customers…
+            </div>
+          )}
+          {error && !loading && (
+            <div className="rounded-lg border bg-white p-4 text-center text-red-600 shadow-sm">
+              {error}
+            </div>
+          )}
+          {!loading && !error && pageData.length === 0 && (
+            <div className="rounded-lg border bg-white p-4 text-center shadow-sm">
+              No customers found.
+            </div>
+          )}
+
+          {!loading &&
+            !error &&
+            pageData.map((c, idx) => (
+              <div
+                key={c._id}
+                className="rounded-xl border bg-white p-4 shadow-sm transition hover:shadow-md"
+              >
+                <div className="mb-1 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900">
+                    {(page - 1) * pageSize + idx + 1}. {c.name || "—"}
+                  </h3>
+                  <span className="text-xs rounded bg-gray-100 px-2 py-1">
+                    {c.city || "—"}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-700 space-y-1">
+                  <p>
+                    <span className="text-gray-500">Mobile:</span> {c.mobile || "—"}
+                  </p>
+                  <p>
+                    <span className="text-gray-500">Email:</span> {c.email1 || "—"}
+                  </p>
+                  <p className="line-clamp-2">
+                    <span className="text-gray-500">Address:</span> {c.address1 || "—"}
+                  </p>
+                  <p className="flex items-center justify-between">
+                    <span className="text-gray-500">Balance:</span>
+                    <span className="font-medium">{numberFmt(c.previousBalance)}</span>
+                  </p>
+                </div>
+
+                <div className="mt-3 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => goToEditCustomer(c._id)}
+                    className="rounded-md border px-3 py-1.5 text-xs hover:bg-gray-100"
+                    title="Edit"
+                    type="button"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => confirmDelete(c._id)}
+                    className="rounded-md border px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
+                    title="Delete"
+                    type="button"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+        </div>
+
+        {/* Desktop/tablet table (md and up) */}
+        <div className="hidden md:block overflow-x-auto rounded-lg border bg-white shadow-sm">
           <table className="min-w-[1000px] w-full text-left text-sm">
             <thead className="bg-gray-50 text-xs uppercase text-gray-600">
               <tr>
@@ -315,7 +390,6 @@ export default function CustomerList() {
                     <td className="px-3 py-2 text-right">{numberFmt(c.previousBalance)}</td>
                     <td className="px-3 py-2">
                       <div className="flex items-center justify-center gap-2">
-                        {/* EDIT → /edit-customer/:id (top-level, like medicines) */}
                         <button
                           onClick={() => goToEditCustomer(c._id)}
                           className="rounded-md border px-2 py-1 text-xs hover:bg-gray-100"
@@ -326,7 +400,6 @@ export default function CustomerList() {
                             <path d="M13.586 3.586a2 2 0 112.828 2.828l-9.9 9.9a2 2 0 01-.878.507l-3.11.777a.5.5 0 01-.606-.606l.777-3.11a2 2 0 01.507-.878l9.9-9.9z" />
                           </svg>
                         </button>
-                        {/* DELETE */}
                         <button
                           onClick={() => confirmDelete(c._id)}
                           className="rounded-md border px-2 py-1 text-xs text-red-600 hover:bg-red-50"
@@ -350,13 +423,14 @@ export default function CustomerList() {
           <p className="text-sm text-gray-600">
             Showing{" "}
             <span className="font-medium">
-              {sorted.length === 0 ? 0 : (page - 1) * pageSize + 1}-{Math.min(page * pageSize, sorted.length)}
+              {sorted.length === 0 ? 0 : (page - 1) * pageSize + 1}-
+              {Math.min(page * pageSize, sorted.length)}
             </span>{" "}
             of <span className="font-medium">{sorted.length}</span> entries
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-2">
             <button
-              className="rounded border px-3 py-1 text-sm disabled:opacity-40"
+              className="rounded border px-3 py-2 text-sm disabled:opacity-40"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
             >
@@ -367,7 +441,7 @@ export default function CustomerList() {
               <span className="font-medium">{totalPages}</span>
             </span>
             <button
-              className="rounded border px-3 py-1 text-sm disabled:opacity-40"
+              className="rounded border px-3 py-2 text-sm disabled:opacity-40"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
             >
