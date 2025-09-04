@@ -20,6 +20,7 @@ import CustomerList from "./pages/customers/CustomerList";
 import CustomerCredit from "./pages/customers/CustomerCredit";
 import CustomerPaid from "./pages/customers/CustomerPaid";
 import CustomerLedger from "./pages/customers/CustomerLedger";
+import EditCustomer from "./pages/customers/EditCustomer"; // ✅ NEW
 
 function App() {
   return (
@@ -87,6 +88,23 @@ function App() {
           element={
             <AdminProtectedRoute>
               <CustomerLedger />
+            </AdminProtectedRoute>
+          }
+        />
+        {/* ✅ EDIT CUSTOMER — support BOTH patterns */}
+        <Route
+          path="/edit-customer/:id"
+          element={
+            <AdminProtectedRoute>
+              <EditCustomer />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/customers/edit/:id"
+          element={
+            <AdminProtectedRoute>
+              <EditCustomer />
             </AdminProtectedRoute>
           }
         />

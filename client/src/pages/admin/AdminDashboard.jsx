@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import MedicineCard from "../../components/MedicineCard";
 import { Link, useNavigate } from "react-router-dom";
-import Sidebar from "../../components/Sidebar"; // ⬅️ new reusable sidebar
+import Sidebar from "../../components/Sidebar"; // ⬅️ reusable sidebar
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ totalPharmacies: 0, totalStaff: 0, activeUsers: 0 });
