@@ -48,6 +48,9 @@ import LeafSettingPage from "./pages/medicines/LeafSetting";
 import AddSupplier from "./pages/suppliers/AddSupplier";
 import SupplierList from "./pages/suppliers/SupplierList";
 
+//Purchase
+import AddPurchase from "./pages/purchases/AddPurchase";
+import PurchaseList from "./pages/purchases/PurchaseList";
 
 
 function App() {
@@ -251,6 +254,26 @@ function App() {
             </AdminProtectedRoute>
           }
         />
+
+         {/* ===== Purchase (protected) ===== */}
+        <Route
+        path="/dashboard/admin/purchases/add"
+        element={
+          <AdminProtectedRoute>
+            <AddPurchase />
+          </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/purchases/list"
+          element={
+            <AdminProtectedRoute>
+              <PurchaseList />
+            </AdminProtectedRoute>
+          }
+        />
+
+
 
 
       </Routes>

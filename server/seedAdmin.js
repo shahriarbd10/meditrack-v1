@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const User = require("./models/User"); // Adjust path if necessary
 
-const adminEmail = "shahriarsgr@gmail.com";
+const adminEmail = "shahriarsgrii@gmail.com";
 const adminPassword = "meditrackbd"; 
 const adminRole = "admin"; 
 

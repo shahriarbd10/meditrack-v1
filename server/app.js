@@ -14,7 +14,7 @@ const adminStatsRoutes = require("./routes/adminStats");
 const staffRoutes = require("./routes/staff");
 const authGoogleRoutes = require("./routes/authGoogle");
 const customerRoutes = require("./routes/customerRoutes");
-
+const purchaseRoutes = require("./routes/purchases");
 /* =======================
    Models for inline CRUD
 ======================= */
@@ -50,7 +50,7 @@ app.use("/api/auth", authGoogleRoutes);
 app.use("/api/admin", adminStatsRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/customers", customerRoutes);
-
+app.use("/api/purchases", purchaseRoutes); 
 /* =======================
    Categories (INLINE CRUD)
    Base: /api/categories
