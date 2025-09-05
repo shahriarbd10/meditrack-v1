@@ -1,46 +1,70 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+
+// Dashboards & shells
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import AddMedicine from "./pages/AddMedicine"; // 👈 still using your working one
-import EditMedicine from "./pages/EditMedicine";
-import MedicineDetails from "./pages/MedicineDetails";
-import MedicineInfo from "./pages/MedicineInfo";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import NormalDashboard from "./pages/NormalDashboard";
-import AdminProtectedRoute from "./components/AdminProtectedRoute";
 import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
 import Homepage from "./components/Home/Homepage";
 
-// ✅ Customer pages
+// Auth
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import AdminProtectedRoute from "./components/AdminProtectedRoute";
+
+// Customers
 import AddCustomer from "./pages/customers/AddCustomer";
 import CustomerList from "./pages/customers/CustomerList";
 import CustomerCredit from "./pages/customers/CustomerCredit";
 import CustomerPaid from "./pages/customers/CustomerPaid";
 import CustomerLedger from "./pages/customers/CustomerLedger";
-import EditCustomer from "./pages/customers/EditCustomer"; // ✅ NEW
+import EditCustomer from "./pages/customers/EditCustomer";
+
+// Medicines
+import AddMedicine from "./pages/medicines/AddMedicine";
+import EditMedicine from "./pages/medicines/EditMedicine";
+import MedicineDetails from "./pages/medicines/MedicineDetails";
+import MedicineInfo from "./pages/medicines/MedicineInfo";
+import MedicineList from "./pages/medicines/MedicineList";
+
+// Category pages
+import AddCategory from "./pages/medicines/AddCategory";
+import CategoryList from "./pages/medicines/CategoryList";
+
+// Type pages
+import AddType from "./pages/medicines/AddType";
+import TypeList from "./pages/medicines/TypeList";
+
+//Unit Pages
+import AddUnit from "./pages/medicines/AddUnit";
+import UnitList from "./pages/medicines/UnitList";
+
+//Leaf Page
+import LeafSettingPage from "./pages/medicines/LeafSetting";
+
+//Supplier
+import AddSupplier from "./pages/suppliers/AddSupplier";
+import SupplierList from "./pages/suppliers/SupplierList";
+
+
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Public */}
+        {/* ===== Public ===== */}
         <Route path="/" element={<Homepage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Entry route */}
+        {/* ===== Entry ===== */}
         <Route path="/dashboard" element={<Dashboard />} />
-
-        {/* Normal user */}
         <Route path="/dashboard/normal" element={<NormalDashboard />} />
-
-        {/* Redirect if someone goes to /admin directly */}
         <Route path="/admin" element={<Navigate to="/dashboard/admin" replace />} />
 
-        {/* Admin dashboard (protected) */}
+        {/* ===== Admin (protected) ===== */}
         <Route
           path="/dashboard/admin"
           element={
@@ -50,7 +74,7 @@ function App() {
           }
         />
 
-        {/* ================= Customers ================= */}
+        {/* ===== Customers (protected) ===== */}
         <Route
           path="/dashboard/admin/customers/add"
           element={
@@ -91,7 +115,7 @@ function App() {
             </AdminProtectedRoute>
           }
         />
-        {/* ✅ EDIT CUSTOMER — support BOTH patterns */}
+        {/* Edit — support both patterns */}
         <Route
           path="/edit-customer/:id"
           element={
@@ -109,16 +133,24 @@ function App() {
           }
         />
 
-        {/* ================= Pharmacy & Staff ================= */}
+        {/* ===== Pharmacy & Staff ===== */}
         <Route path="/dashboard/pharmacy" element={<PharmacyDashboard />} />
         <Route path="/dashboard/staff" element={<StaffDashboard />} />
 
-        {/* ================= Medicine CRUD ================= */}
+        {/* ===== Medicine CRUD (protected) ===== */}
         <Route
-          path="/add-medicine"
+          path="/dashboard/admin/medicines/add"
           element={
             <AdminProtectedRoute>
               <AddMedicine />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/medicines/list"
+          element={
+            <AdminProtectedRoute>
+              <MedicineList />
             </AdminProtectedRoute>
           }
         />
@@ -140,28 +172,12 @@ function App() {
         />
         <Route path="/medicine-info/:id" element={<MedicineInfo />} />
 
-        {/* ================= Medicine Sidebar Items ================= */}
-        <Route
-          path="/dashboard/admin/medicines/add"
-          element={
-            <AdminProtectedRoute>
-              <AddMedicine />
-            </AdminProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/admin/medicines/list"
-          element={
-            <AdminProtectedRoute>
-              <div className="p-6">Medicine List (coming soon)</div>
-            </AdminProtectedRoute>
-          }
-        />
+        {/* ===== Medicine: Category (protected) ===== */}
         <Route
           path="/dashboard/admin/medicines/category/add"
           element={
             <AdminProtectedRoute>
-              <div className="p-6">Add Category (coming soon)</div>
+              <AddCategory />
             </AdminProtectedRoute>
           }
         />
@@ -169,31 +185,17 @@ function App() {
           path="/dashboard/admin/medicines/category/list"
           element={
             <AdminProtectedRoute>
-              <div className="p-6">Category List (coming soon)</div>
+              <CategoryList />
             </AdminProtectedRoute>
           }
         />
-        <Route
-          path="/dashboard/admin/medicines/unit/add"
-          element={
-            <AdminProtectedRoute>
-              <div className="p-6">Add Unit (coming soon)</div>
-            </AdminProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/admin/medicines/unit/list"
-          element={
-            <AdminProtectedRoute>
-              <div className="p-6">Unit List (coming soon)</div>
-            </AdminProtectedRoute>
-          }
-        />
+
+        {/* ===== Medicine: Type (protected) ===== */}
         <Route
           path="/dashboard/admin/medicines/type/add"
           element={
             <AdminProtectedRoute>
-              <div className="p-6">Add Type (coming soon)</div>
+              <AddType />
             </AdminProtectedRoute>
           }
         />
@@ -201,18 +203,56 @@ function App() {
           path="/dashboard/admin/medicines/type/list"
           element={
             <AdminProtectedRoute>
-              <div className="p-6">Type List (coming soon)</div>
+              <TypeList />
             </AdminProtectedRoute>
           }
         />
+
+        {/* ===== Medicine: Unit / Leaf (placeholders for now) ===== */}
+        <Route
+              path="/dashboard/admin/medicines/unit/add"
+              element={
+              <AdminProtectedRoute>
+                <AddUnit />
+              </AdminProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/admin/medicines/unit/list"
+            element={
+              <AdminProtectedRoute>
+                <UnitList />
+              </AdminProtectedRoute>
+            }
+          />
+
         <Route
           path="/dashboard/admin/medicines/leaf-setting"
           element={
             <AdminProtectedRoute>
-              <div className="p-6">Leaf Setting (coming soon)</div>
+              <LeafSettingPage />
             </AdminProtectedRoute>
           }
         />
+         {/* ===== Supplier (protected) ===== */}
+        <Route
+        path="/dashboard/admin/suppliers/add"
+        element={
+          <AdminProtectedRoute>
+            <AddSupplier />
+          </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/suppliers/list"
+          element={
+            <AdminProtectedRoute>
+              <SupplierList />
+            </AdminProtectedRoute>
+          }
+        />
+
+
       </Routes>
     </Router>
   );

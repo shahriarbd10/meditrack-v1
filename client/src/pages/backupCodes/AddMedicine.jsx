@@ -17,12 +17,31 @@ export default function AddMedicine() {
     picture: "",
     amount: "",
     description: "",
+    pictureSource: "url", // "url" or "upload"
   });
 
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     setMedicine({ ...medicine, [e.target.name]: e.target.value });
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Resize the image using Cloudinary (or any other service)
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "your_cloudinary_preset"); // Set this on Cloudinary
+      axios
+        .post("https://api.cloudinary.com/v1_1/your_cloud_name/image/upload", formData)
+        .then((response) => {
+          setMedicine({ ...medicine, picture: response.data.secure_url });
+        })
+        .catch((err) => {
+          console.error("Error uploading image", err);
+        });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -39,6 +58,15 @@ export default function AddMedicine() {
   return (
     <div className="max-w-3xl mx-auto p-6 bg-base-100 rounded-md shadow-md mt-6">
       <h2 className="text-2xl font-bold mb-6">Add New Medicine</h2>
+      
+      {/* Back Button */}
+      <button
+        onClick={() => navigate("/dashboard/admin")}
+        className="btn btn-secondary mb-6"
+      >
+        Back to Dashboard
+      </button>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           name="name"
@@ -132,15 +160,54 @@ export default function AddMedicine() {
           <option value="Capsule">Capsule</option>
           <option value="Other">Other</option>
         </select>
-        <input
-          name="picture"
-          type="url"
-          value={medicine.picture}
-          onChange={handleChange}
-          placeholder="Picture URL (Cloudinary)"
-          className="input input-bordered w-full"
-          required
-        />
+
+        {/* Picture Source Options */}
+        <div className="flex items-center gap-4">
+          <label className="text-sm">Picture Source:</label>
+          <label className="cursor-pointer">
+            <input
+              type="radio"
+              name="pictureSource"
+              value="url"
+              checked={medicine.pictureSource === "url"}
+              onChange={handleChange}
+              className="mr-2"
+            />
+            URL
+          </label>
+          <label className="cursor-pointer">
+            <input
+              type="radio"
+              name="pictureSource"
+              value="upload"
+              checked={medicine.pictureSource === "upload"}
+              onChange={handleChange}
+              className="mr-2"
+            />
+            Upload
+          </label>
+        </div>
+
+        {/* Show URL input or file input based on selected picture source */}
+        {medicine.pictureSource === "url" ? (
+          <input
+            name="picture"
+            type="url"
+            value={medicine.picture}
+            onChange={handleChange}
+            placeholder="Picture URL (Cloudinary)"
+            className="input input-bordered w-full"
+            required
+          />
+        ) : (
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="input input-bordered w-full"
+          />
+        )}
+
         <input
           name="amount"
           value={medicine.amount}
