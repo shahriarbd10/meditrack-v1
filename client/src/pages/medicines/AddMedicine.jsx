@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+// src/pages/medicines/AddMedicine.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
@@ -10,6 +11,17 @@ const API = {
   units: "http://localhost:5000/api/units",
   suppliers: "http://localhost:5000/api/suppliers",
   leaf: "http://localhost:5000/api/leaf-settings",
+};
+
+// helper to multiply all numbers found in a string like "3x10" -> 30
+const productFromTextNumbers = (txt = "") => {
+  const nums = String(txt)
+    .toLowerCase()
+    .split(/[^0-9]+/g)
+    .filter(Boolean)
+    .map(Number);
+  if (!nums.length) return 0;
+  return nums.reduce((a, b) => a * (isNaN(b) ? 1 : b), 1);
 };
 
 export default function AddMedicine() {
@@ -39,7 +51,9 @@ export default function AddMedicine() {
     supplierPrice: "",
     vat: "0",
     status: "active",
-    expiryDate: "", // ← NEW
+    expiryDate: "",
+    // NEW
+    boxAmount: "", // how many boxes you have/planning
   });
 
   const [file, setFile] = useState(null);
@@ -67,7 +81,8 @@ export default function AddMedicine() {
     })();
   }, []);
 
-  const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const handleChange = (e) =>
+    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
   const handleFile = (e) => {
     const f = e.target.files?.[0];
@@ -75,18 +90,42 @@ export default function AddMedicine() {
     setPreview(f ? URL.createObjectURL(f) : "");
   };
 
+  // derive units per box from selected leaf (prefer DB value, fallback to text parse)
+  const unitsPerBox = useMemo(() => {
+    const found = leafs.find((x) => x.leafType === form.boxSize);
+    if (found && typeof found.totalNumber === "number") return found.totalNumber;
+    const parsed = productFromTextNumbers(form.boxSize);
+    return parsed || 0;
+  }, [form.boxSize, leafs]);
+
+  // compute total units = unitsPerBox * boxAmount
+  const totalUnits = useMemo(() => {
+    const amt = Number(form.boxAmount || 0);
+    const u = Number(unitsPerBox || 0);
+    return amt * u;
+  }, [form.boxAmount, unitsPerBox]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return alert("Medicine name is required");
     if (!form.genericName.trim()) return alert("Generic name is required");
-    if (!form.category || !form.unit || !form.supplier) return alert("Select Category, Unit and Supplier");
+    if (!form.category || !form.unit || !form.supplier)
+      return alert("Select Category, Unit and Supplier");
 
     try {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ""));
       if (file) fd.append("image", file);
 
-      await axios.post(API.add, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      // ✅ SEND computed totalUnits to the server
+      fd.append("totalUnits", String(Number.isFinite(totalUnits) ? totalUnits : 0));
+
+      // (optional) also send unitsPerBox if your server wants it
+      fd.append("unitsPerBox", String(Number.isFinite(unitsPerBox) ? unitsPerBox : 0));
+
+      await axios.post(API.add, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       navigate("/dashboard/admin/medicines/list");
     } catch (err) {
       console.error("Add medicine error:", err?.response?.data || err);
@@ -102,69 +141,160 @@ export default function AddMedicine() {
         <div className="max-w-6xl mx-auto bg-white shadow-xl rounded-xl p-6 md:p-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold text-primary">Add Medicine</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-primary">
+              Add Medicine
+            </h2>
             <div className="flex gap-2">
-              <Link to="/dashboard/admin/medicines/list" className="btn btn-success btn-sm md:btn-md">
+              <Link
+                to="/dashboard/admin/medicines/list"
+                className="btn btn-success btn-sm md:btn-md"
+              >
                 Medicine List
               </Link>
             </div>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
             {/* LEFT side */}
             <div className="space-y-4">
               <div>
                 <label className="label font-semibold">Bar Code/QR Code</label>
-                <input name="barcode" className="input input-bordered w-full" value={form.barcode} onChange={handleChange} placeholder="Bar Code/QR Code" />
+                <input
+                  name="barcode"
+                  className="input input-bordered w-full"
+                  value={form.barcode}
+                  onChange={handleChange}
+                  placeholder="Bar Code/QR Code"
+                />
               </div>
 
               <div>
                 <label className="label font-semibold">Strength</label>
-                <input name="strength" className="input input-bordered w-full" value={form.strength} onChange={handleChange} placeholder="Strength" />
+                <input
+                  name="strength"
+                  className="input input-bordered w-full"
+                  value={form.strength}
+                  onChange={handleChange}
+                  placeholder="Strength"
+                />
               </div>
 
               <div>
                 <label className="label font-semibold">Box Size *</label>
-                <select name="boxSize" className="select select-bordered w-full" value={form.boxSize} onChange={handleChange}>
+                <select
+                  name="boxSize"
+                  className="select select-bordered w-full"
+                  value={form.boxSize}
+                  onChange={handleChange}
+                >
                   <option value="">Select Leaf Pattern</option>
                   {leafs.map((x) => (
-                    <option key={x._id} value={x.leafType}>{x.leafType}</option>
+                    <option key={x._id} value={x.leafType}>
+                      {x.leafType}
+                      {typeof x.totalNumber === "number"
+                        ? ` (${x.totalNumber} units)`
+                        : ""}
+                    </option>
                   ))}
                 </select>
               </div>
 
+              {/* NEW: Box Amount + Total Units */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-1">
+                  <label className="label font-semibold">Box Amount</label>
+                  <input
+                    name="boxAmount"
+                    type="number"
+                    min={0}
+                    className="input input-bordered w-full"
+                    value={form.boxAmount}
+                    onChange={handleChange}
+                    placeholder="e.g. 4"
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="label font-semibold">Units / Box</label>
+                  <input
+                    className="input input-bordered w-full bg-base-200 pointer-events-none"
+                    value={Number.isFinite(unitsPerBox) ? unitsPerBox : 0}
+                    readOnly
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <label className="label font-semibold">Total Units</label>
+                  <input
+                    className="input input-bordered w-full bg-base-200 pointer-events-none"
+                    value={Number.isFinite(totalUnits) ? totalUnits : 0}
+                    readOnly
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="label font-semibold">Shelf</label>
-                <input name="shelf" className="input input-bordered w-full" value={form.shelf} onChange={handleChange} placeholder="Shelf" />
+                <input
+                  name="shelf"
+                  className="input input-bordered w-full"
+                  value={form.shelf}
+                  onChange={handleChange}
+                  placeholder="Shelf"
+                />
               </div>
 
               <div>
                 <label className="label font-semibold">Category *</label>
-                <select name="category" className="select select-bordered w-full" value={form.category} onChange={handleChange} required>
+                <select
+                  name="category"
+                  className="select select-bordered w-full"
+                  value={form.category}
+                  onChange={handleChange}
+                  required
+                >
                   <option value="">Select Category</option>
                   {categories.map((c) => (
-                    <option key={c._id} value={c.name}>{c.name}</option>
+                    <option key={c._id} value={c.name}>
+                      {c.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="label font-semibold">Medicine Type</label>
-                <select name="type" className="select select-bordered w-full" value={form.type} onChange={handleChange}>
+                <select
+                  name="type"
+                  className="select select-bordered w-full"
+                  value={form.type}
+                  onChange={handleChange}
+                >
                   <option value="">Select Type</option>
                   {types.map((t) => (
-                    <option key={t._id} value={t.name}>{t.name}</option>
+                    <option key={t._id} value={t.name}>
+                      {t.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="label font-semibold">Supplier *</label>
-                <select name="supplier" className="select select-bordered w-full" value={form.supplier} onChange={handleChange} required>
+                <select
+                  name="supplier"
+                  className="select select-bordered w-full"
+                  value={form.supplier}
+                  onChange={handleChange}
+                  required
+                >
                   <option value="">Select Manufacturer</option>
                   {suppliers.map((s) => (
-                    <option key={s._id} value={s.manufacturerName}>{s.manufacturerName}</option>
+                    <option key={s._id} value={s.manufacturerName}>
+                      {s.manufacturerName}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -172,7 +302,15 @@ export default function AddMedicine() {
               <div>
                 <label className="label font-semibold">VAT %</label>
                 <div className="flex items-center gap-2">
-                  <input name="vat" type="number" step="0.01" className="input input-bordered w-full" value={form.vat} onChange={handleChange} placeholder="e.g. 15.00" />
+                  <input
+                    name="vat"
+                    type="number"
+                    step="0.01"
+                    className="input input-bordered w-full"
+                    value={form.vat}
+                    onChange={handleChange}
+                    placeholder="e.g. 15.00"
+                  />
                   <span className="text-lime-600 font-semibold">%</span>
                 </div>
               </div>
@@ -192,11 +330,25 @@ export default function AddMedicine() {
                 <label className="label font-semibold">Status *</label>
                 <div className="flex items-center gap-8">
                   <label className="label cursor-pointer gap-2">
-                    <input type="radio" name="status" value="active" className="radio radio-primary" checked={form.status === "active"} onChange={handleChange} />
+                    <input
+                      type="radio"
+                      name="status"
+                      value="active"
+                      className="radio radio-primary"
+                      checked={form.status === "active"}
+                      onChange={handleChange}
+                    />
                     <span className="label-text">Active</span>
                   </label>
                   <label className="label cursor-pointer gap-2">
-                    <input type="radio" name="status" value="inactive" className="radio" checked={form.status === "inactive"} onChange={handleChange} />
+                    <input
+                      type="radio"
+                      name="status"
+                      value="inactive"
+                      className="radio"
+                      checked={form.status === "inactive"}
+                      onChange={handleChange}
+                    />
                     <span className="label-text">Inactive</span>
                   </label>
                 </div>
@@ -207,48 +359,103 @@ export default function AddMedicine() {
             <div className="space-y-4">
               <div>
                 <label className="label font-semibold">Medicine Name *</label>
-                <input name="name" className="input input-bordered w-full" value={form.name} onChange={handleChange} placeholder="Medicine Name" required />
+                <input
+                  name="name"
+                  className="input input-bordered w-full"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Medicine Name"
+                  required
+                />
               </div>
 
               <div>
                 <label className="label font-semibold">Generic Name *</label>
-                <input name="genericName" className="input input-bordered w-full" value={form.genericName} onChange={handleChange} placeholder="Generic Name" required />
+                <input
+                  name="genericName"
+                  className="input input-bordered w-full"
+                  value={form.genericName}
+                  onChange={handleChange}
+                  placeholder="Generic Name"
+                  required
+                />
               </div>
 
               <div>
                 <label className="label font-semibold">Unit *</label>
-                <select name="unit" className="select select-bordered w-full" value={form.unit} onChange={handleChange} required>
+                <select
+                  name="unit"
+                  className="select select-bordered w-full"
+                  value={form.unit}
+                  onChange={handleChange}
+                  required
+                >
                   <option value="">Select Unit</option>
                   {units.map((u) => (
-                    <option key={u._id} value={u.name}>{u.name}</option>
+                    <option key={u._id} value={u.name}>
+                      {u.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="label font-semibold">Medicine Details</label>
-                <input name="details" className="input input-bordered w-full" value={form.details} onChange={handleChange} placeholder="Medicine Details" />
+                <input
+                  name="details"
+                  className="input input-bordered w-full"
+                  value={form.details}
+                  onChange={handleChange}
+                  placeholder="Medicine Details"
+                />
               </div>
 
               <div>
                 <label className="label font-semibold">Price *</label>
-                <input name="price" type="number" step="0.01" className="input input-bordered w-full" value={form.price} onChange={handleChange} placeholder="Price" required />
+                <input
+                  name="price"
+                  type="number"
+                  step="0.01"
+                  className="input input-bordered w-full"
+                  value={form.price}
+                  onChange={handleChange}
+                  placeholder="Price"
+                  required
+                />
               </div>
 
               <div>
                 <label className="label font-semibold">Supplier Price *</label>
-                <input name="supplierPrice" type="number" step="0.01" className="input input-bordered w-full" value={form.supplierPrice} onChange={handleChange} placeholder="Supplier Price" required />
+                <input
+                  name="supplierPrice"
+                  type="number"
+                  step="0.01"
+                  className="input input-bordered w-full"
+                  value={form.supplierPrice}
+                  onChange={handleChange}
+                  placeholder="Supplier Price"
+                  required
+                />
               </div>
 
               <div>
                 <label className="label font-semibold">Image</label>
-                <input type="file" accept="image/*" onChange={handleFile} className="file-input file-input-bordered w-full" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFile}
+                  className="file-input file-input-bordered w-full"
+                />
               </div>
 
               <div className="flex items-center gap-4">
                 <span className="font-semibold">Preview:</span>
                 {preview ? (
-                  <img src={preview} alt="preview" className="w-16 h-16 object-cover rounded-md border" />
+                  <img
+                    src={preview}
+                    alt="preview"
+                    className="w-16 h-16 object-cover rounded-md border"
+                  />
                 ) : (
                   <span className="text-gray-400">No image</span>
                 )}
@@ -257,7 +464,9 @@ export default function AddMedicine() {
 
             {/* Submit */}
             <div className="md:col-span-2">
-              <button type="submit" className="btn btn-primary w-40">Save</button>
+              <button type="submit" className="btn btn-primary w-40">
+                Save
+              </button>
             </div>
           </form>
         </div>

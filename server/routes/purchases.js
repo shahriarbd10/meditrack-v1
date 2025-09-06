@@ -25,13 +25,19 @@ function newPurchaseId() {
   )}${pad(now.getMinutes())}${pad(now.getSeconds())}-${Math.floor(Math.random() * 1000)}`;
 }
 
+// ⬇️ Latest quantity rule to match frontend (and AddInvoice)
+function effUnits(qty, boxQty) {
+  const q = toNum(qty);
+  const b = toNum(boxQty);
+  return (q || 1) * (b || 1);
+}
+
 function normalizeItems(items = []) {
   return (items || []).map((it) => {
-    const unitsPerBox = toNum(it.unitsPerBox) || unitsFromPattern(it.boxPattern);
     const boxQty = toNum(it.boxQty);
     const quantity = toNum(it.quantity);
     const supplierPrice = toNum(it.supplierPrice);
-    const totalUnits = boxQty * unitsPerBox + quantity;
+    const totalUnits = effUnits(quantity, boxQty); // multiplicative rule
     const lineTotal = totalUnits * supplierPrice;
 
     return {
@@ -41,7 +47,7 @@ function normalizeItems(items = []) {
       expiryDate: it.expiryDate ? new Date(it.expiryDate) : null,
       stockQty: toNum(it.stockQty),
       boxPattern: it.boxPattern || "",
-      unitsPerBox,
+      unitsPerBox: toNum(it.unitsPerBox) || unitsFromPattern(it.boxPattern), // kept for reference
       boxQty,
       quantity,
       supplierPrice,
@@ -63,16 +69,25 @@ function computeTotals(items = [], vatPercent = 0, discountPercent = 0, paidAmou
   const paid = toNum(paidAmount);
   const dueAmount = Math.max(0, grandTotal - paid);
 
-  return { subTotal, vatPercent: vatPct, vatAmount, discountPercent: discPct, discountAmount, grandTotal, paidAmount: paid, dueAmount };
+  return {
+    subTotal,
+    vatPercent: vatPct,
+    vatAmount,
+    discountPercent: discPct,
+    discountAmount,
+    grandTotal,
+    paidAmount: paid,
+    dueAmount,
+  };
 }
 
 function aggregateUnitsByMedicine(items = []) {
-  // returns Map(medicineIdStr -> unitsAdded)
+  // returns Map(medicineIdStr -> unitsAdded) using multiplicative rule
   const map = new Map();
   for (const row of items) {
     if (!row.medicineId) continue;
     const key = String(row.medicineId);
-    const units = toNum(row.boxQty) * (toNum(row.unitsPerBox) || 1) + toNum(row.quantity);
+    const units = effUnits(row.quantity, row.boxQty);
     map.set(key, (map.get(key) || 0) + units);
   }
   return map;
@@ -116,11 +131,11 @@ router.post(["/", "/add"], async (req, res) => {
       ...totals,
     });
 
-    // increment stock for each item
+    // increment stock for each item (use totalUnits field, not 'stock')
     try {
       const incMap = aggregateUnitsByMedicine(normalized);
       for (const [medId, units] of incMap.entries()) {
-        await Medicine.findByIdAndUpdate(medId, { $inc: { stock: units } });
+        await Medicine.findByIdAndUpdate(medId, { $inc: { totalUnits: units } });
       }
     } catch (e) {
       console.warn("Stock increment warning:", e?.message);
@@ -134,7 +149,7 @@ router.post(["/", "/add"], async (req, res) => {
 });
 
 /* ---------- LIST ---------- */
-router.get("/", async (req, res) => {
+router.get("/", async (_req, res) => {
   try {
     const list = await Purchase.find().sort({ date: -1, createdAt: -1 });
     res.json({ data: list });
@@ -225,10 +240,10 @@ async function handleUpdate(req, res) {
 
     await existing.save();
 
-    // 5) apply stock deltas
+    // 5) apply stock deltas (totalUnits)
     try {
       for (const { medId, delta } of ops) {
-        await Medicine.findByIdAndUpdate(medId, { $inc: { stock: delta } });
+        await Medicine.findByIdAndUpdate(medId, { $inc: { totalUnits: delta } });
       }
     } catch (e) {
       console.warn("Stock delta warning:", e?.message);
@@ -250,11 +265,11 @@ router.delete("/:id", async (req, res) => {
     const doc = await Purchase.findByIdAndDelete(req.params.id);
     if (!doc) return res.status(404).json({ message: "Purchase not found." });
 
-    // OPTIONAL: roll back stock (remove previously added units)
+    // Roll back stock (remove previously added units) from totalUnits
     try {
       const oldMap = aggregateUnitsByMedicine(doc.items);
       for (const [medId, units] of oldMap.entries()) {
-        await Medicine.findByIdAndUpdate(medId, { $inc: { stock: -units } });
+        await Medicine.findByIdAndUpdate(medId, { $inc: { totalUnits: -units } });
       }
     } catch (e) {
       console.warn("Stock rollback warning:", e?.message);

@@ -1,3 +1,4 @@
+// src/pages/purchases/EditPurchase.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -12,6 +13,16 @@ const API = {
 
 const toNum = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 const today = () => new Date().toISOString().slice(0, 10);
+const arr = (v) => (Array.isArray(v) ? v : v?.data && Array.isArray(v.data) ? v.data : []);
+const fmt = (n) => Number(n || 0).toFixed(2);
+const pickAvail = (m) => toNum(m?.totalUnits ?? m?.stock ?? m?.quantity ?? m?.availableQty ?? 0);
+
+// latest rule (same as AddInvoice/AddPurchase new)
+const effUnits = (qty, boxQty) => {
+  const q = toNum(qty) || 1;
+  const b = toNum(boxQty) || 1;
+  return q * b;
+};
 
 function parseUnitsPerBox(pattern = "") {
   const nums = String(pattern)
@@ -51,7 +62,7 @@ export default function EditPurchase() {
     medicineName: "",
     batchId: "",
     expiryDate: "",
-    stockQty: 0,
+    availQty: 0, // display hint from Medicine.totalUnits
     boxPattern: "",
     unitsPerBox: 1,
     boxQty: 0,
@@ -62,7 +73,7 @@ export default function EditPurchase() {
   const [rows, setRows] = useState([mkRow()]);
   const lastLeafRef = useRef("");
 
-  // load dropdowns + purchase
+  /* ---------- load dropdowns ---------- */
   useEffect(() => {
     (async () => {
       try {
@@ -71,9 +82,10 @@ export default function EditPurchase() {
           axios.get(API.leaf),
           axios.get(API.medicines),
         ]);
-        setSuppliers(s.data?.data || []);
-        setLeafs(l.data?.data || []);
-        setMeds(m.data?.data || m.data?.medicines || []);
+        setSuppliers(arr(s.data));
+        setLeafs(arr(l.data));
+        const medList = arr(m.data) || arr(m.data?.medicines);
+        setMeds(medList);
       } catch (err) {
         console.error("Dropdown load error:", err);
         alert("Failed to load dropdowns.");
@@ -81,13 +93,13 @@ export default function EditPurchase() {
     })();
   }, []);
 
+  /* ---------- load purchase ---------- */
   useEffect(() => {
     (async () => {
       try {
         const res = await axios.get(`${API.purchasesBase}/${id}`);
         const p = res.data?.data || res.data?.purchase || res.data;
 
-        // header defaults + fetched
         setHead((prev) => ({
           ...prev,
           supplierId: p?.supplierId || "",
@@ -101,23 +113,28 @@ export default function EditPurchase() {
           paidAmount: toNum(p?.paidAmount),
         }));
 
-        // rows/items
         const items = p?.items || [];
         setRows(
           items.length
-            ? items.map((r) => ({
-                medicineId: r.medicineId || "",
-                medicineName: r.medicineName || "",
-                batchId: r.batchId || "",
-                expiryDate: r.expiryDate ? new Date(r.expiryDate).toISOString().slice(0, 10) : "",
-                stockQty: toNum(r.stockQty),
-                boxPattern: r.boxPattern || "",
-                unitsPerBox: r.unitsPerBox || parseUnitsPerBox(r.boxPattern),
-                boxQty: toNum(r.boxQty),
-                quantity: toNum(r.quantity),
-                supplierPrice: toNum(r.supplierPrice),
-                boxMRP: toNum(r.boxMRP),
-              }))
+            ? items.map((r) => {
+                // try to fetch current stock & default supplierPrice from medicine list by ID/name
+                const match =
+                  meds.find((m) => String(m._id) === String(r.medicineId)) ||
+                  meds.find((m) => (m.name || "").toLowerCase().trim() === (r.medicineName || "").toLowerCase().trim());
+                return {
+                  medicineId: r.medicineId || match?._id || "",
+                  medicineName: r.medicineName || match?.name || "",
+                  batchId: r.batchId || "",
+                  expiryDate: r.expiryDate ? new Date(r.expiryDate).toISOString().slice(0, 10) : "",
+                  availQty: pickAvail(match),
+                  boxPattern: r.boxPattern || "",
+                  unitsPerBox: r.unitsPerBox || parseUnitsPerBox(r.boxPattern),
+                  boxQty: toNum(r.boxQty),
+                  quantity: toNum(r.quantity),
+                  supplierPrice: toNum(r.supplierPrice ?? match?.supplierPrice ?? 0),
+                  boxMRP: toNum(r.boxMRP),
+                };
+              })
             : [mkRow()]
         );
       } catch (err) {
@@ -126,41 +143,28 @@ export default function EditPurchase() {
         navigate("/dashboard/admin/purchases/list");
       }
     })();
-  }, [id, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, meds.length]); // re-evaluate once medicines are loaded
 
-  // totals
-  const totals = useMemo(() => {
-    const sub = rows.reduce((sum, r) => {
-      const upb = r.unitsPerBox || parseUnitsPerBox(r.boxPattern);
-      const totalUnits = toNum(r.boxQty) * upb + toNum(r.quantity);
-      return sum + totalUnits * toNum(r.supplierPrice);
-    }, 0);
-    const vatAmt = (sub * toNum(head.vatPercent)) / 100;
-    const discAmt = (sub * toNum(head.discountPercent)) / 100;
-    const grand = sub + vatAmt - discAmt;
-    const due = Math.max(0, grand - toNum(head.paidAmount));
-    return { sub, vatAmt, discAmt, grand, due };
-  }, [rows, head]);
-
-  // helpers
+  /* ---------- helpers ---------- */
   const setRow = (i, patch) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
-  const onMedicineTyped = (i, nameOrId) => {
-    const byId = meds.find((x) => x._id === nameOrId);
-    const byName =
-      byId ||
-      meds.find((x) => x.name?.toLowerCase() === String(nameOrId).trim().toLowerCase());
-    if (byName) {
-      setRow(i, {
-        medicineId: byName._id,
-        medicineName: byName.name || "",
-        stockQty: byName?.stock ?? 0,
-        supplierPrice: byName?.supplierPrice ?? 0,
-      });
-    } else {
-      setRow(i, { medicineId: "", medicineName: nameOrId, stockQty: 0, supplierPrice: 0 });
-    }
+  const applyMedToRow = (i, m) => {
+    setRow(i, {
+      medicineId: m._id,
+      medicineName: m.name || rows[i].medicineName,
+      availQty: pickAvail(m),
+      supplierPrice: toNum(m.supplierPrice ?? m.purchasePrice ?? rows[i].supplierPrice),
+    });
+  };
+
+  const onMedicineTyped = (i, name) => {
+    const s = String(name || "").toLowerCase().trim();
+    const m =
+      meds.find((x) => (x.name || "").toLowerCase().trim() === s) ||
+      meds.find((x) => (x.barcode || "").toLowerCase().trim() === s);
+    if (m) applyMedToRow(i, m);
   };
 
   const addRow = () =>
@@ -172,20 +176,64 @@ export default function EditPurchase() {
         unitsPerBox: parseUnitsPerBox(lastLeafRef.current || ""),
       },
     ]);
-
   const removeRow = (i) => setRows((p) => (p.length === 1 ? p : p.filter((_, idx) => idx !== i)));
 
+  /* ---------- suggester like AddPurchase ---------- */
+  const [openSuggest, setOpenSuggest] = useState({ open: false, rowIndex: -1 });
+  const suggestFilter = (q) => {
+    const s = String(q || "").toLowerCase().trim();
+    if (!s) return meds.slice(0, 10);
+    return meds
+      .filter(
+        (m) =>
+          (m.name || "").toLowerCase().includes(s) ||
+          (m.genericName || "").toLowerCase().includes(s)
+      )
+      .slice(0, 12);
+  };
+
+  /* ---------- totals: multiplicative rule ---------- */
+  const totals = useMemo(() => {
+    const sub = rows.reduce((sum, r) => {
+      const baseUnits = effUnits(r.quantity, r.boxQty);
+      return sum + baseUnits * toNum(r.supplierPrice);
+    }, 0);
+    const vatAmt = (sub * toNum(head.vatPercent)) / 100;
+    const discAmt = (sub * toNum(head.discountPercent)) / 100;
+    const grand = sub + vatAmt - discAmt;
+    const due = Math.max(0, grand - toNum(head.paidAmount));
+    return { sub, vatAmt, discAmt, grand, due };
+  }, [rows, head]);
+
+  /* ---------- submit ---------- */
   const submit = async (e) => {
     e.preventDefault();
     try {
       const payload = {
-        ...head,
+        supplierId: head.supplierId,
+        supplierName: head.supplierName,
+        invoiceNo: head.invoiceNo,
+        date: head.date,
+        paymentType: head.paymentType,
+        details: head.details,
+        vatPercent: toNum(head.vatPercent),
+        discountPercent: toNum(head.discountPercent),
+        paidAmount: toNum(head.paidAmount),
         items: rows.map((r) => ({
-          ...r,
+          medicineId: r.medicineId || null,
+          medicineName: r.medicineName,
+          batchId: r.batchId,
+          expiryDate: r.expiryDate,
+          stockQty: toNum(r.availQty), // optional: not used by server
+          boxPattern: r.boxPattern,
           unitsPerBox: r.unitsPerBox || parseUnitsPerBox(r.boxPattern),
+          boxQty: toNum(r.boxQty),
+          quantity: toNum(r.quantity),
+          supplierPrice: toNum(r.supplierPrice),
+          boxMRP: toNum(r.boxMRP),
         })),
       };
-      // Update instead of add
+
       await axios.put(`${API.purchasesBase}/${id}`, payload);
       alert("✅ Purchase updated");
       navigate("/dashboard/admin/purchases/list");
@@ -202,30 +250,30 @@ export default function EditPurchase() {
   const [showMirror, setShowMirror] = useState(false);
 
   const syncWidthsAndToggle = () => {
-    const sc = scrollerRef.current;
-    const mr = mirrorRef.current;
-    const inner = mirrorInnerRef.current;
+    const sc = scrollerRef.current,
+      mr = mirrorRef.current,
+      inner = mirrorInnerRef.current;
     if (!sc || !mr || !inner) return;
     mr.style.width = `${sc.clientWidth}px`;
     inner.style.width = `${sc.scrollWidth}px`;
     setShowMirror(sc.scrollWidth > sc.clientWidth + 1);
   };
   const syncFromTable = () => {
-    const sc = scrollerRef.current;
-    const mr = mirrorRef.current;
+    const sc = scrollerRef.current,
+      mr = mirrorRef.current;
     if (!sc || !mr) return;
     if (Math.abs(mr.scrollLeft - sc.scrollLeft) > 1) mr.scrollLeft = sc.scrollLeft;
   };
   const syncFromMirror = () => {
-    const sc = scrollerRef.current;
-    const mr = mirrorRef.current;
+    const sc = scrollerRef.current,
+      mr = mirrorRef.current;
     if (!sc || !mr) return;
     if (Math.abs(sc.scrollLeft - mr.scrollLeft) > 1) sc.scrollLeft = mr.scrollLeft;
   };
 
   useEffect(() => {
-    const sc = scrollerRef.current;
-    const mr = mirrorRef.current;
+    const sc = scrollerRef.current,
+      mr = mirrorRef.current;
     if (!sc || !mr) return;
     const onResize = () => syncWidthsAndToggle();
     sc.addEventListener("scroll", syncFromTable, { passive: true });
@@ -260,7 +308,7 @@ export default function EditPurchase() {
           </div>
 
           <form onSubmit={submit} className="px-4 sm:px-6 md:px-8 py-6 space-y-6 min-w-0">
-            {/* TOP: two columns (like AddMedicine) */}
+            {/* TOP: two columns */}
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="label font-semibold">
@@ -272,7 +320,11 @@ export default function EditPurchase() {
                   onChange={(e) => {
                     const sid = e.target.value;
                     const s = suppliers.find((x) => x._id === sid);
-                    setHead((p) => ({ ...p, supplierId: sid, supplierName: s?.manufacturerName || "" }));
+                    setHead((p) => ({
+                      ...p,
+                      supplierId: sid,
+                      supplierName: s?.manufacturerName || "",
+                    }));
                   }}
                   required
                 >
@@ -348,56 +400,89 @@ export default function EditPurchase() {
                          [&::-webkit-scrollbar-thumb]:bg-base-300
                          [&::-webkit-scrollbar-track]:bg-base-200"
             >
-              <table className="table min-w-[1200px] w-full">
+              <table className="table min-w-[1280px] w-full">
                 <thead className="bg-base-200 text-[13px]">
                   <tr>
-                    <th className="min-w-[210px]">Medicine Information<span className="text-error">*</span></th>
+                    <th className="min-w-[220px]">Medicine Information<span className="text-error">*</span></th>
                     <th className="min-w-[120px]">Batch Id</th>
-                    <th className="min-w-[140px]">Expiry Date<span className="text-error">*</span></th>
-                    <th className="min-w-[110px] text-right">Stock Qty</th>
-                    <th className="min-w-[160px]">Box Pattern<span className="text-error">*</span></th>
+                    <th className="min-w-[130px]">Expiry Date<span className="text-error">*</span></th>
+                    <th className="min-w-[100px] text-right">Stock (Units)</th>
+                    <th className="min-w-[160px]">Leaf / Box Pattern<span className="text-error">*</span></th>
                     <th className="min-w-[110px] text-right">Box Qty<span className="text-error">*</span></th>
                     <th className="min-w-[110px] text-right">Quantity<span className="text-error">*</span></th>
                     <th className="min-w-[140px] text-right">Supplier Price<span className="text-error">*</span></th>
                     <th className="min-w-[140px] text-right">Box MRP<span className="text-error">*</span></th>
-                    <th className="min-w-[160px] text-right">Total Purchase Price</th>
+                    <th className="min-w-[160px] text-right">Line Total</th>
                     <th className="min-w-[80px] text-center">Action</th>
                   </tr>
                 </thead>
 
                 <tbody className="text-[13px]">
-                  {/* hidden datalist for type-to-select */}
-                  <tr className="hidden">
-                    <td>
-                      <datalist id="meds-list">
-                        {meds.map((m) => (
-                          <option key={m._id} value={m.name} />
-                        ))}
-                        {meds.map((m) => (
-                          <option key={`${m._id}-id`} value={m._id} />
-                        ))}
-                      </datalist>
-                    </td>
-                  </tr>
-
                   {rows.map((r, i) => {
-                    const unitsPerBox = r.unitsPerBox || parseUnitsPerBox(r.boxPattern);
-                    const totalUnits = toNum(r.boxQty) * unitsPerBox + toNum(r.quantity);
-                    const lineTotal = totalUnits * toNum(r.supplierPrice);
+                    const baseUnits = effUnits(r.quantity, r.boxQty);
+                    const lineTotal = baseUnits * toNum(r.supplierPrice);
+
+                    const suggestions =
+                      openSuggest.open && openSuggest.rowIndex === i
+                        ? suggestFilter(r.medicineName)
+                        : [];
 
                     return (
                       <tr key={i}>
-                        <td>
-                          <input
-                            list="meds-list"
-                            className="input input-bordered w-full"
-                            placeholder="Medicine Name"
-                            value={r.medicineName || r.micineId}
-                            onChange={(e) => onMedicineTyped(i, e.target.value)}
-                            onBlur={(e) => onMedicineTyped(i, e.target.value)}
-                            required
-                          />
+                        {/* Medicine + suggester */}
+                        <td className="relative">
+                          <div className="relative">
+                            <input
+                              className="input input-bordered w-full"
+                              placeholder="Type medicine name"
+                              value={r.medicineName}
+                              onFocus={() => setOpenSuggest({ open: true, rowIndex: i })}
+                              onChange={(e) => {
+                                setRow(i, { medicineName: e.target.value, medicineId: "" });
+                                setOpenSuggest({ open: true, rowIndex: i });
+                              }}
+                              onBlur={() =>
+                                setTimeout(() => setOpenSuggest({ open: false, rowIndex: -1 }), 150)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") onMedicineTyped(i, r.medicineName);
+                              }}
+                              required
+                            />
+                            {suggestions.length > 0 && (
+                              <ul
+                                className="absolute z-20 mt-1 w-full bg-white border border-base-300 rounded-lg shadow-lg max-h-56 overflow-auto text-sm"
+                                role="listbox"
+                              >
+                                {suggestions.map((m) => (
+                                  <li
+                                    key={m._id || m.id}
+                                    className="px-3 py-2 hover:bg-base-200 cursor-pointer"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      applyMedToRow(i, m);
+                                      setOpenSuggest({ open: false, rowIndex: -1 });
+                                    }}
+                                  >
+                                    <div className="font-medium">
+                                      {m.name}
+                                      {m.strength ? ` — ${m.strength}` : ""}
+                                    </div>
+                                    <div className="text-xs opacity-75">
+                                      {(m.genericName && `Generic: ${m.genericName} · `) || ""}
+                                      Unit: {m.unit || "-"}
+                                      {m.boxSize ? ` · Box: ${m.boxSize}` : ""}
+                                      {` · Buy: ${fmt(m.supplierPrice ?? m.purchasePrice ?? 0)}`}
+                                      {` · Stock: ${fmt(pickAvail(m))}`}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
                         </td>
+
+                        {/* Batch Id */}
                         <td>
                           <input
                             className="input input-bordered w-full"
@@ -406,6 +491,8 @@ export default function EditPurchase() {
                             onChange={(e) => setRow(i, { batchId: e.target.value })}
                           />
                         </td>
+
+                        {/* Expiry */}
                         <td>
                           <input
                             type="date"
@@ -415,13 +502,17 @@ export default function EditPurchase() {
                             required
                           />
                         </td>
+
+                        {/* Stock (readonly) */}
                         <td className="text-right">
                           <input
                             className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                            value={Number(r.stockQty || 0).toFixed(2)}
+                            value={fmt(r.availQty)}
                             readOnly
                           />
                         </td>
+
+                        {/* Leaf pattern */}
                         <td>
                           <select
                             className="select select-bordered w-full"
@@ -441,51 +532,67 @@ export default function EditPurchase() {
                             ))}
                           </select>
                         </td>
+
+                        {/* Box Qty */}
                         <td className="text-right">
                           <input
                             type="number"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.boxQty}
                             onChange={(e) => setRow(i, { boxQty: toNum(e.target.value) })}
                             required
                           />
                         </td>
+
+                        {/* Quantity */}
                         <td className="text-right">
                           <input
                             type="number"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.quantity}
                             onChange={(e) => setRow(i, { quantity: toNum(e.target.value) })}
                             required
                           />
                         </td>
+
+                        {/* Supplier Price */}
                         <td className="text-right">
                           <input
                             type="number"
                             step="0.01"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.supplierPrice}
                             onChange={(e) => setRow(i, { supplierPrice: toNum(e.target.value) })}
                             required
                           />
                         </td>
+
+                        {/* Box MRP */}
                         <td className="text-right">
                           <input
                             type="number"
                             step="0.01"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.boxMRP}
                             onChange={(e) => setRow(i, { boxMRP: toNum(e.target.value) })}
                             required
                           />
                         </td>
+
+                        {/* Line Total */}
                         <td className="text-right">
                           <input
                             className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                            value={lineTotal.toFixed(2)}
+                            value={fmt(lineTotal)}
                             readOnly
                           />
                         </td>
+
+                        {/* Action */}
                         <td className="text-center">
                           <button
                             type="button"
@@ -505,53 +612,84 @@ export default function EditPurchase() {
 
                   {/* summary rows */}
                   <tr>
-                    <td colSpan={8}></td>
+                    <td colSpan={7}></td>
                     <td className="text-right font-medium">Sub Total:</td>
                     <td>
-                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none" value={totals.sub.toFixed(2)} readOnly />
+                      <input
+                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
+                        value={fmt(totals.sub)}
+                        readOnly
+                      />
                     </td>
                     <td className="text-center">
-                      <button type="button" className="btn btn-ghost btn-xs" onClick={addRow} title="Add Row">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        onClick={addRow}
+                        title="Add Row"
+                      >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-info" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M11 11V6h2v5h5v2h-5v5h-2v-5H6v-2z"/>
                         </svg>
                       </button>
                     </td>
+                    <td />
                   </tr>
 
                   <tr>
-                    <td colSpan={8}></td>
-                    <td className="text-right font-medium">Vat:</td>
+                    <td colSpan={7}></td>
+                    <td className="text-right font-medium">VAT:</td>
                     <td>
-                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none" value={totals.vatAmt.toFixed(2)} readOnly />
+                      <input
+                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
+                        value={fmt(totals.vatAmt)}
+                        readOnly
+                      />
                     </td>
                     <td className="text-center">
-                      <PercentBox value={head.vatPercent} onChange={(v) => setHead((p) => ({ ...p, vatPercent: toNum(v) }))} />
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td colSpan={8}></td>
-                    <td className="text-right font-medium">Discount:</td>
-                    <td>
-                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none" value={totals.discAmt.toFixed(2)} readOnly />
-                    </td>
-                    <td className="text-center">
-                      <PercentBox value={head.discountPercent} onChange={(v) => setHead((p) => ({ ...p, discountPercent: toNum(v) }))} />
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td colSpan={8}></td>
-                    <td className="text-right font-semibold">Grand Total:</td>
-                    <td>
-                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold" value={totals.grand.toFixed(2)} readOnly />
+                      <PercentBox
+                        value={head.vatPercent}
+                        onChange={(v) => setHead((p) => ({ ...p, vatPercent: toNum(v) }))}
+                      />
                     </td>
                     <td />
                   </tr>
 
                   <tr>
-                    <td colSpan={8}></td>
+                    <td colSpan={7}></td>
+                    <td className="text-right font-medium">Discount:</td>
+                    <td>
+                      <input
+                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
+                        value={fmt(totals.discAmt)}
+                        readOnly
+                      />
+                    </td>
+                    <td className="text-center">
+                      <PercentBox
+                        value={head.discountPercent}
+                        onChange={(v) => setHead((p) => ({ ...p, discountPercent: toNum(v) }))}
+                      />
+                    </td>
+                    <td />
+                  </tr>
+
+                  <tr>
+                    <td colSpan={7}></td>
+                    <td className="text-right font-semibold">Grand Total:</td>
+                    <td>
+                      <input
+                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold"
+                        value={fmt(totals.grand)}
+                        readOnly
+                      />
+                    </td>
+                    <td />
+                    <td />
+                  </tr>
+
+                  <tr>
+                    <td colSpan={7}></td>
                     <td className="text-right font-medium">Paid Amount:</td>
                     <td>
                       <input
@@ -562,15 +700,30 @@ export default function EditPurchase() {
                         onChange={(e) => setHead((p) => ({ ...p, paidAmount: toNum(e.target.value) }))}
                       />
                     </td>
+                    <td className="text-center">
+                      <button
+                        type="button"
+                        className="btn btn-warning btn-xs"
+                        onClick={() => setHead((p) => ({ ...p, paidAmount: Number(totals.grand.toFixed(2)) }))}
+                        title="Fill with Grand Total"
+                      >
+                        Full Paid
+                      </button>
+                    </td>
                     <td />
                   </tr>
 
                   <tr>
-                    <td colSpan={8}></td>
+                    <td colSpan={7}></td>
                     <td className="text-right font-semibold">Due Amount:</td>
                     <td>
-                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold" value={totals.due.toFixed(2)} readOnly />
+                      <input
+                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold"
+                        value={fmt(totals.due)}
+                        readOnly
+                      />
                     </td>
+                    <td />
                     <td />
                   </tr>
                 </tbody>
@@ -596,13 +749,6 @@ export default function EditPurchase() {
 
             {/* actions */}
             <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                className="btn btn-warning"
-                onClick={() => setHead((p) => ({ ...p, paidAmount: totals.grand }))}
-              >
-                Full Paid
-              </button>
               <button type="submit" className="btn btn-success">
                 Save Changes
               </button>

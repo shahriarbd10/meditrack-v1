@@ -58,6 +58,7 @@ import EditPurchase from "./pages/purchases/EditPurchase";
 import AddInvoice from "./pages/invoices/AddInvoice";
 import InvoiceList from "./pages/invoices/InvoiceList";
 import InvoicePrint from "./pages/invoices/InvoicePrint";
+import EditInvoice from "./pages/invoices/EditInvoice";
 
 
 
@@ -289,6 +290,8 @@ function App() {
             </AdminProtectedRoute>
           }
         />
+
+        
         {/* ===== Invoice (protected) ===== */}
         <Route
           path="/dashboard/admin/invoices/add"
@@ -311,6 +314,14 @@ function App() {
           element={
             <AdminProtectedRoute>
               <InvoicePrint />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/invoices/edit/:id"
+          element={
+            <AdminProtectedRoute>
+              <EditInvoice />
             </AdminProtectedRoute>
           }
         />

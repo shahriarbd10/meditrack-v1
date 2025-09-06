@@ -10,7 +10,7 @@ import Sidebar from "../../components/Sidebar";
 const API = {
   customers: "http://localhost:5000/api/customers",
   medicines: "http://localhost:5000/api/medicines",
-  invoices: "http://localhost:5000/api/invoices/add",
+  invoices:  "http://localhost:5000/api/invoices/add",
 };
 
 /* =======================
@@ -19,6 +19,15 @@ const API = {
 const toNum = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 const today = () => new Date().toISOString().slice(0, 10);
 const arr = (v) => (Array.isArray(v) ? v : v?.data && Array.isArray(v.data) ? v.data : []);
+const pickAvail = (m) => toNum(m?.totalUnits ?? m?.stock ?? m?.quantity ?? m?.availableQty ?? 0);
+const fmt = (n) => Number(n || 0).toFixed(2);
+
+/** Must match server rule exactly: (qty||1) * (boxQty||1) */
+const effUnits = (qty, boxQty) => {
+  const q = toNum(qty) || 1;
+  const b = toNum(boxQty) || 1;
+  return q * b;
+};
 
 /* =======================
    Component
@@ -37,8 +46,8 @@ export default function AddInvoice() {
     date: today(),
     paymentType: "Cash Payment",
     details: "",
-    previousDue: 0,
-    invoiceDiscount: 0, // absolute amount
+    previousDue: 0,        // from matching customer
+    invoiceDiscount: 0,    // absolute (BDT, not %)
     paidAmount: 0,
   });
 
@@ -48,9 +57,9 @@ export default function AddInvoice() {
     batch: "",
     expiryDate: "",
     unit: "None",
-    availQty: 0, // readonly hint
-    qty: 0, // multiplied with boxQty (0 => 1 for calc)
-    boxQty: 0, // multiplied with qty   (0 => 1 for calc)
+    availQty: 0, // readonly hint (from Medicine.totalUnits)
+    qty: 0,      // multiplied with boxQty (0 → 1 in calc)
+    boxQty: 0,   // multiplied with qty   (0 → 1 in calc)
     price: 0,
     discountPct: 0,
     vatPct: 0,
@@ -79,8 +88,7 @@ export default function AddInvoice() {
         head.customerName.toLowerCase().trim()
     );
     setHead((p) => ({ ...p, previousDue: toNum(c?.previousDue || 0) }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [head.customerName]);
+  }, [head.customerName, customers]);
 
   /* ---------- row helpers ---------- */
   const setRow = (i, patch) =>
@@ -89,19 +97,23 @@ export default function AddInvoice() {
   const addRow = () => setRows((p) => [...p, mkRow()]);
   const removeRow = (i) => setRows((p) => (p.length === 1 ? p : p.filter((_, idx) => idx !== i)));
 
+  /** When a medicine is selected/recognized, populate fields and Avail Qty */
   const applyMedToRow = (i, m) => {
     setRow(i, {
       medicineName: m.name || rows[i].medicineName,
-      unit: m.unitType || "None",
-      price: toNum(m.price || m.mrp || 0),
-      vatPct: toNum(m.vatPct || 0),
+      unit: m.unit || "None",
+      price: toNum(m.price || 0),
+      vatPct: toNum(m.vat || 0),
       expiryDate: m.expiryDate ? new Date(m.expiryDate).toISOString().slice(0, 10) : "",
-      availQty: toNum(m.totalUnits || m.stock || 0),
+      availQty: pickAvail(m), // <- totalUnits
     });
   };
 
   const onMedicineTyped = (i, name) => {
-    const m = meds.find((x) => (x.name || "").toLowerCase() === String(name).toLowerCase());
+    const s = String(name || "").toLowerCase().trim();
+    const m =
+      meds.find((x) => (x.name || "").toLowerCase().trim() === s) ||
+      meds.find((x) => (x.barcode || "").toLowerCase().trim() === s);
     if (m) applyMedToRow(i, m);
   };
 
@@ -111,28 +123,18 @@ export default function AddInvoice() {
     const s = String(q || "").toLowerCase().trim();
     if (!s) return meds.slice(0, 10);
     return meds
-      .filter((m) => (m.name || "").toLowerCase().includes(s))
+      .filter((m) => (m.name || "").toLowerCase().includes(s) || (m.genericName || "").toLowerCase().includes(s))
       .slice(0, 12);
   };
 
-  /* ---------- totals (strict multiplication with 1 fallback) ---------- */
-  const effUnits = (qty, boxQty) => {
-    const q = toNum(qty) || 1;
-    const b = toNum(boxQty) || 1;
-    return q * b;
-  };
-
+  /* ---------- totals ---------- */
   const totals = useMemo(() => {
-    let sub = 0,
-      itemDisc = 0,
-      itemVat = 0;
+    let sub = 0, itemDisc = 0, itemVat = 0;
 
     rows.forEach((r) => {
-      const eUnits = effUnits(r.qty, r.boxQty);
-      const base = eUnits * toNum(r.price);
+      const base = effUnits(r.qty, r.boxQty) * toNum(r.price);
       const d = (base * toNum(r.discountPct)) / 100;
       const v = (base * toNum(r.vatPct)) / 100;
-
       sub += base;
       itemDisc += d;
       itemVat += v;
@@ -158,37 +160,32 @@ export default function AddInvoice() {
     };
   }, [rows, head.invoiceDiscount, head.previousDue, head.paidAmount]);
 
-  /* ---------- mirror slider like AddPurchase ---------- */
+  /* ---------- mirror slider (for wide table) ---------- */
   const scrollerRef = useRef(null);
   const mirrorRef = useRef(null);
   const mirrorInnerRef = useRef(null);
   const [showMirror, setShowMirror] = useState(false);
 
   const syncWidthsAndToggle = () => {
-    const sc = scrollerRef.current;
-    const mr = mirrorRef.current;
-    const inner = mirrorInnerRef.current;
+    const sc = scrollerRef.current, mr = mirrorRef.current, inner = mirrorInnerRef.current;
     if (!sc || !mr || !inner) return;
     mr.style.width = `${sc.clientWidth}px`;
     inner.style.width = `${sc.scrollWidth}px`;
     setShowMirror(sc.scrollWidth > sc.clientWidth + 1);
   };
   const syncFromTable = () => {
-    const sc = scrollerRef.current;
-    const mr = mirrorRef.current;
+    const sc = scrollerRef.current, mr = mirrorRef.current;
     if (!sc || !mr) return;
     if (Math.abs(mr.scrollLeft - sc.scrollLeft) > 1) mr.scrollLeft = sc.scrollLeft;
   };
   const syncFromMirror = () => {
-    const sc = scrollerRef.current;
-    const mr = mirrorRef.current;
+    const sc = scrollerRef.current, mr = mirrorRef.current;
     if (!sc || !mr) return;
     if (Math.abs(sc.scrollLeft - mr.scrollLeft) > 1) sc.scrollLeft = mr.scrollLeft;
   };
 
   useEffect(() => {
-    const sc = scrollerRef.current;
-    const mr = mirrorRef.current;
+    const sc = scrollerRef.current, mr = mirrorRef.current;
     if (!sc || !mr) return;
     const onResize = () => syncWidthsAndToggle();
     sc.addEventListener("scroll", syncFromTable, { passive: true });
@@ -202,14 +199,42 @@ export default function AddInvoice() {
     };
   }, []);
 
-  useEffect(() => {
-    syncWidthsAndToggle();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows.length, head.invoiceDiscount, head.previousDue, head.paidAmount]);
+  useEffect(() => { syncWidthsAndToggle(); },
+    [rows.length, head.invoiceDiscount, head.previousDue, head.paidAmount]);
 
   /* ---------- submit ---------- */
+  // Client-side stock precheck (friendlier UX). We SUM required units per medicine.
+  // Server will re-check and decrement in /api/invoices/add.
+  const precheckStock = () => {
+    // Map selected medicines to required units total
+    const requiredByName = new Map();
+    for (const r of rows) {
+      const name = (r.medicineName || "").trim();
+      if (!name) continue;
+      const matched = meds.find(
+        (x) => (x.name || "").toLowerCase().trim() === name.toLowerCase()
+      );
+      if (!matched) continue; // manual item -> skip precheck
+      const need = effUnits(r.qty, r.boxQty);
+      requiredByName.set(name, (requiredByName.get(name) || 0) + need);
+    }
+
+    // Compare with available totalUnits
+    for (const [name, need] of requiredByName) {
+      const m = meds.find((x) => (x.name || "").toLowerCase().trim() === name.toLowerCase());
+      const avail = pickAvail(m);
+      if (avail > 0 && need > avail) {
+        alert(`Insufficient stock for ${name}. Available: ${avail}, required: ${need}`);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const submit = async (e) => {
     e.preventDefault();
+    if (!precheckStock()) return;
+
     try {
       const payload = {
         date: head.date,
@@ -379,14 +404,14 @@ export default function AddInvoice() {
 
                 <tbody className="text-[13px]">
                   {rows.map((r, i) => {
-                    const eUnits = effUnits(r.qty, r.boxQty); // (qty||1) * (boxQty||1)
-                    const base = eUnits * toNum(r.price);
+                    const base = effUnits(r.qty, r.boxQty) * toNum(r.price);
                     const lineDisc = (base * toNum(r.discountPct)) / 100;
                     const lineTotal = base - lineDisc; // VAT added in totals
 
-                    const suggestions = openSuggest.open && openSuggest.rowIndex === i
-                      ? suggestFilter(r.medicineName)
-                      : [];
+                    const suggestions =
+                      openSuggest.open && openSuggest.rowIndex === i
+                        ? suggestFilter(r.medicineName)
+                        : [];
 
                     return (
                       <tr key={i}>
@@ -402,25 +427,40 @@ export default function AddInvoice() {
                                 setRow(i, { medicineName: e.target.value });
                                 setOpenSuggest({ open: true, rowIndex: i });
                               }}
-                              onBlur={() => setTimeout(() => setOpenSuggest({ open: false, rowIndex: -1 }), 150)}
+                              onBlur={() =>
+                                setTimeout(() => setOpenSuggest({ open: false, rowIndex: -1 }), 150)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") onMedicineTyped(i, r.medicineName);
+                              }}
                               required
                             />
-                            {/* Suggestion dropdown */}
+                            {/* Suggestion dropdown (rich info) */}
                             {suggestions.length > 0 && (
                               <ul
                                 className="absolute z-20 mt-1 w-full bg-white border border-base-300 rounded-lg shadow-lg max-h-56 overflow-auto text-sm"
                                 role="listbox"
                               >
                                 {suggestions.map((m) => (
-                                  <li key={m._id || m.id} className="px-3 py-2 hover:bg-base-200 cursor-pointer"
-                                      onMouseDown={(e) => e.preventDefault()}
-                                      onClick={() => {
-                                        applyMedToRow(i, m);
-                                        setOpenSuggest({ open: false, rowIndex: -1 });
-                                      }}>
-                                    <div className="font-medium">{m.name}</div>
+                                  <li
+                                    key={m._id || m.id}
+                                    className="px-3 py-2 hover:bg-base-200 cursor-pointer"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => {
+                                      applyMedToRow(i, m);
+                                      setOpenSuggest({ open: false, rowIndex: -1 });
+                                    }}
+                                  >
+                                    <div className="font-medium">
+                                      {m.name}
+                                      {m.strength ? ` — ${m.strength}` : ""}
+                                    </div>
                                     <div className="text-xs opacity-75">
-                                      {m.unitType ? `Unit: ${m.unitType}` : "Unit: -"} · Price: {toNum(m.price || m.mrp || 0).toFixed(2)} · Stock: {toNum(m.totalUnits || m.stock || 0)}
+                                      {(m.genericName && `Generic: ${m.genericName} · `) || ""}
+                                      Unit: {m.unit || "-"}
+                                      {m.boxSize ? ` · Box: ${m.boxSize}` : ""}
+                                      {` · Price: ${fmt(m.price)}`}
+                                      {` · Stock: ${fmt(pickAvail(m))}`} {/* totalUnits */}
                                     </div>
                                   </li>
                                 ))}
@@ -453,7 +493,7 @@ export default function AddInvoice() {
                         <td className="text-right">
                           <input
                             className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                            value={toNum(r.availQty).toFixed(2)}
+                            value={fmt(r.availQty)}
                             readOnly
                           />
                         </td>
@@ -471,6 +511,7 @@ export default function AddInvoice() {
                         <td className="text-right">
                           <input
                             type="number"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.qty}
                             onChange={(e) => setRow(i, { qty: toNum(e.target.value) })}
@@ -481,6 +522,7 @@ export default function AddInvoice() {
                         <td className="text-right">
                           <input
                             type="number"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.boxQty}
                             onChange={(e) => setRow(i, { boxQty: toNum(e.target.value) })}
@@ -492,6 +534,7 @@ export default function AddInvoice() {
                           <input
                             type="number"
                             step="0.01"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.price}
                             onChange={(e) => setRow(i, { price: toNum(e.target.value) })}
@@ -503,6 +546,7 @@ export default function AddInvoice() {
                           <input
                             type="number"
                             step="0.01"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.discountPct}
                             onChange={(e) => setRow(i, { discountPct: toNum(e.target.value) })}
@@ -514,6 +558,7 @@ export default function AddInvoice() {
                           <input
                             type="number"
                             step="0.01"
+                            min={0}
                             className="input input-bordered w-full text-right"
                             value={r.vatPct}
                             onChange={(e) => setRow(i, { vatPct: toNum(e.target.value) })}
@@ -524,7 +569,7 @@ export default function AddInvoice() {
                         <td className="text-right">
                           <input
                             className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                            value={lineTotal.toFixed(2)}
+                            value={fmt(lineTotal)}
                             readOnly
                           />
                         </td>
@@ -538,8 +583,13 @@ export default function AddInvoice() {
                             title="Delete row"
                             disabled={rows.length === 1}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-error" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M9 3h6a1 1 0 0 1 1 1v1h4v2h-1v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7H4V5h4V4a1 1 0 0 1 1-1zm2 0v1h2V3h-2zM7 7v13h10V7H7zm3 3h2v8h-2v-8zm4 0h2v8h-2v-8z"/>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 text-error"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                            >
+                              <path d="M9 3h6a1 1 0 0 1 1 1v1h4v2h-1v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7H4V5h4V4a1 1 0 0 1 1-1zm2 0v1h2V3h-2zM7 7v13h10V7H7zm3 3h2v8h-2v-8zm4 0h2v8h-2v-8z" />
                             </svg>
                           </button>
                         </td>
@@ -557,13 +607,25 @@ export default function AddInvoice() {
                         step="0.01"
                         className="input input-bordered w-full text-right"
                         value={head.invoiceDiscount}
-                        onChange={(e) => setHead((p) => ({ ...p, invoiceDiscount: toNum(e.target.value) }))}
+                        onChange={(e) =>
+                          setHead((p) => ({ ...p, invoiceDiscount: toNum(e.target.value) }))
+                        }
                       />
                     </td>
                     <td className="text-center">
-                      <button type="button" className="btn btn-ghost btn-xs" onClick={addRow} title="Add Row">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-info" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M11 11V6h2v5h5v2h-5v5h-2v-5H6v-2z"/>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        onClick={addRow}
+                        title="Add Row"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4 text-info"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                        >
+                          <path d="M11 11V6h2v5h5v2h-5v5h-2v-5H6v-2z" />
                         </svg>
                       </button>
                     </td>
@@ -575,7 +637,7 @@ export default function AddInvoice() {
                     <td>
                       <input
                         className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                        value={totals.totalDiscount.toFixed(2)}
+                        value={fmt(totals.totalDiscount)}
                         readOnly
                       />
                     </td>
@@ -588,7 +650,7 @@ export default function AddInvoice() {
                     <td>
                       <input
                         className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                        value={totals.itemVat.toFixed(2)}
+                        value={fmt(totals.itemVat)}
                         readOnly
                       />
                     </td>
@@ -601,7 +663,7 @@ export default function AddInvoice() {
                     <td>
                       <input
                         className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold"
-                        value={totals.grand.toFixed(2)}
+                        value={fmt(totals.grand)}
                         readOnly
                       />
                     </td>
@@ -617,7 +679,9 @@ export default function AddInvoice() {
                         step="0.01"
                         className="input input-bordered w-full text-right"
                         value={head.previousDue}
-                        onChange={(e) => setHead((p) => ({ ...p, previousDue: toNum(e.target.value) }))}
+                        onChange={(e) =>
+                          setHead((p) => ({ ...p, previousDue: toNum(e.target.value) }))
+                        }
                       />
                     </td>
                     <td />
@@ -629,7 +693,7 @@ export default function AddInvoice() {
                     <td>
                       <input
                         className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold"
-                        value={totals.net.toFixed(2)}
+                        value={fmt(totals.net)}
                         readOnly
                       />
                     </td>
@@ -645,7 +709,9 @@ export default function AddInvoice() {
                         step="0.01"
                         className="input input-bordered w-full text-right"
                         value={head.paidAmount}
-                        onChange={(e) => setHead((p) => ({ ...p, paidAmount: toNum(e.target.value) }))}
+                        onChange={(e) =>
+                          setHead((p) => ({ ...p, paidAmount: toNum(e.target.value) }))
+                        }
                       />
                     </td>
                     <td />
@@ -657,7 +723,7 @@ export default function AddInvoice() {
                     <td>
                       <input
                         className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                        value={totals.due.toFixed(2)}
+                        value={fmt(totals.due)}
                         readOnly
                       />
                     </td>
@@ -670,7 +736,7 @@ export default function AddInvoice() {
                     <td>
                       <input
                         className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                        value={totals.change.toFixed(2)}
+                        value={fmt(totals.change)}
                         readOnly
                       />
                     </td>
@@ -702,7 +768,9 @@ export default function AddInvoice() {
               <button
                 type="button"
                 className="btn btn-warning"
-                onClick={() => setHead((p) => ({ ...p, paidAmount: Number(totals.net.toFixed(2)) }))}
+                onClick={() =>
+                  setHead((p) => ({ ...p, paidAmount: Number(totals.net.toFixed(2)) }))
+                }
                 title="Fill paid with Net Total"
               >
                 Full Paid

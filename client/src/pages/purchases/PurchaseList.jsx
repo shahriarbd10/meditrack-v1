@@ -6,6 +6,29 @@ import Sidebar from "../../components/Sidebar";
 const API_BASE = "http://localhost:5000/api/purchases";
 const toDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
+// Safely pull a human name for the medicine from different possible shapes
+function getItemMedicineName(it) {
+  return (
+    it?.medicineName ||
+    it?.medicine?.name ||
+    it?.name ||
+    it?.title ||
+    ""
+  );
+}
+
+// Join unique medicine names for table display
+function joinMedicineNames(items = [], max = 3) {
+  const uniq = [];
+  for (const it of items || []) {
+    const nm = (getItemMedicineName(it) || "").trim();
+    if (nm && !uniq.includes(nm)) uniq.push(nm);
+  }
+  if (!uniq.length) return "—";
+  if (uniq.length <= max) return uniq.join(", ");
+  return `${uniq.slice(0, max).join(", ")} +${uniq.length - max} more`;
+}
+
 function minExpiry(items = []) {
   // pick earliest valid expiry in the item list
   const times = (items || [])
@@ -48,12 +71,19 @@ export default function PurchaseList() {
     if (end) data = data.filter((x) => new Date(x.date) <= new Date(end));
     if (search.trim()) {
       const q = search.toLowerCase();
-      data = data.filter(
-        (x) =>
+      data = data.filter((x) => {
+        const textHit =
           (x.invoiceNo || "").toLowerCase().includes(q) ||
           (x.purchaseId || "").toLowerCase().includes(q) ||
-          (x.supplierName || "").toLowerCase().includes(q)
-      );
+          (x.supplierName || "").toLowerCase().includes(q);
+
+        // also search by medicine names within items
+        const medicineHit = (x.items || []).some((it) =>
+          getItemMedicineName(it).toLowerCase().includes(q)
+        );
+
+        return textHit || medicineHit;
+      });
     }
     return data;
   }, [list, start, end, search]);
@@ -88,7 +118,7 @@ export default function PurchaseList() {
 
           {/* Filters */}
           <div className="px-5 md:px-8 pt-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
               <label className="form-control">
                 <span className="label text-xs opacity-70">Start Date</span>
                 <input
@@ -109,11 +139,11 @@ export default function PurchaseList() {
                 />
               </label>
 
-              <label className="form-control sm:col-span-2 lg:col-span-2">
+              <label className="form-control sm:col-span-2 lg:col-span-3">
                 <span className="label text-xs opacity-70">Search</span>
                 <input
                   className="input input-bordered"
-                  placeholder="Invoice / Purchase Id / Supplier"
+                  placeholder="Invoice / Purchase Id / Supplier / Medicine Name"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -129,13 +159,14 @@ export default function PurchaseList() {
 
           {/* Table (only this area scrolls horizontally) */}
           <div className="px-5 md:px-8 pb-6 pt-4 overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-base-300">
-            <table className="table min-w-[1120px] w-full">
+            <table className="table min-w-[1280px] w-full">
               <thead className="bg-base-200 text-[13px] sticky top-0 z-10">
                 <tr>
                   <th className="min-w-[60px]">SL</th>
                   <th className="min-w-[140px]">Invoice No</th>
                   <th className="min-w-[160px]">Purchase Id</th>
                   <th className="min-w-[220px]">Supplier Name</th>
+                  <th className="min-w-[240px]">Medicine(s)</th>
                   <th className="min-w-[120px]">Date</th>
                   <th className="min-w-[140px]">Earliest Expiry</th>
                   <th className="min-w-[140px] text-right">Total Amount</th>
@@ -146,13 +177,13 @@ export default function PurchaseList() {
               <tbody className="text-[13px]">
                 {loading ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-10">
+                    <td colSpan="9" className="text-center py-10">
                       <span className="loading loading-spinner" />
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-10 opacity-70">
+                    <td colSpan="9" className="text-center py-10 opacity-70">
                       No purchases found.
                     </td>
                   </tr>
@@ -162,7 +193,10 @@ export default function PurchaseList() {
                       <td>{i + 1}</td>
                       <td>{p.invoiceNo || "—"}</td>
                       <td className="font-mono">{p.purchaseId}</td>
-                      <td className="truncate max-w-[260px]">{p.supplierName}</td>
+                      <td className="truncate max-w-[240px]">{p.supplierName}</td>
+                      <td className="truncate max-w-[320px]" title={joinMedicineNames(p.items, 50)}>
+                        {joinMedicineNames(p.items)}
+                      </td>
                       <td>{toDate(p.date)}</td>
                       <td>{minExpiry(p.items)}</td>
                       <td className="text-right font-semibold">

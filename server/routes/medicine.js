@@ -5,13 +5,14 @@ const express = require("express");
 const multer = require("multer");
 const sharp = require("sharp");
 const Medicine = require("../models/Medicine");
+const LeafSetting = require("../models/LeafSetting"); // NEW
 
 const router = express.Router();
 
 /* ---------- Upload setup ---------- */
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max upload
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
 const UPLOAD_DIR = path.join(process.cwd(), "uploads", "medicines");
@@ -37,9 +38,15 @@ async function compressToTargetWebp(inputBuffer) {
 
 // Safely resolve "/uploads/medicines/xxx.webp" to an absolute filesystem path
 function toFsPath(urlPath) {
-  // remove any leading slash so we stay inside project root
   const rel = (urlPath || "").replace(/^[\\/]+/, "");
   return path.join(process.cwd(), rel);
+}
+
+/* Helpers */
+function productFromTextNumbers(txt = "") {
+  const nums = String(txt).toLowerCase().split(/[^0-9]+/g).filter(Boolean).map(Number);
+  if (!nums.length) return 0;
+  return nums.reduce((a, b) => a * (isNaN(b) ? 1 : b), 1);
 }
 
 /* ---------- CREATE (multipart) ---------- */
@@ -47,22 +54,33 @@ router.post("/", upload.single("image"), async (req, res) => {
   try {
     const body = req.body;
 
+    // image handling
     let imageUrl = "";
     if (req.file) {
       const compressed = await compressToTargetWebp(req.file.buffer);
       const fname = `${Date.now()}-${(body.name || "medicine")
         .replace(/[^a-z0-9]+/gi, "-")
         .toLowerCase()}.webp`;
-      const fpath = path.join(UPLOAD_DIR, fname);
-      fs.writeFileSync(fpath, compressed);
+      fs.writeFileSync(path.join(UPLOAD_DIR, fname), compressed);
       imageUrl = `/uploads/medicines/${fname}`;
     }
 
-    // parse expiryDate (accepts yyyy-mm-dd)
+    // expiry
     let expiryDate = null;
     if (body.expiryDate && !isNaN(Date.parse(body.expiryDate))) {
       expiryDate = new Date(body.expiryDate);
     }
+
+    // ----- totalUnits -----
+    const boxAmount = Number(body.boxAmount) || 0;
+    let unitsPerBox = 0;
+    if (body.boxSize) {
+      const leaf = await LeafSetting.findOne({ leafType: body.boxSize }).lean();
+      unitsPerBox = leaf ? Number(leaf.totalNumber) || 0 : productFromTextNumbers(body.boxSize);
+    }
+    let totalUnits = Number(body.totalUnits);
+    if (!totalUnits && unitsPerBox && boxAmount) totalUnits = unitsPerBox * boxAmount;
+    if (!Number.isFinite(totalUnits)) totalUnits = 0;
 
     const doc = await Medicine.create({
       barcode: body.barcode || "",
@@ -85,6 +103,7 @@ router.post("/", upload.single("image"), async (req, res) => {
 
       imageUrl,
       expiryDate,
+      totalUnits, // ← persist stock
     });
 
     res.status(201).json({ message: "Medicine created", data: doc });
@@ -96,7 +115,7 @@ router.post("/", upload.single("image"), async (req, res) => {
 
 /* Keep old /add path working */
 router.post("/add", upload.single("image"), (req, res, next) => {
-  req.url = "/"; // forward to handler above
+  req.url = "/";
   next();
 });
 
@@ -140,8 +159,6 @@ router.put("/:id", upload.single("image"), async (req, res) => {
       const fpath = path.join(UPLOAD_DIR, fname);
       fs.writeFileSync(fpath, compressed);
       const newUrl = `/uploads/medicines/${fname}`;
-
-      // delete old file if it was in our uploads folder
       if (imageUrl && imageUrl.startsWith("/uploads/medicines/")) {
         const oldPath = toFsPath(imageUrl);
         fs.unlink(oldPath, () => {});
@@ -161,24 +178,40 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     // Update fields
     doc.barcode = body.barcode ?? doc.barcode;
     doc.strength = body.strength ?? doc.strength;
-    doc.boxSize = body.boxSize ?? doc.boxSize;
-    doc.shelf = body.shelf ?? doc.shelf;
+    doc.boxSize  = body.boxSize  ?? doc.boxSize;
+    doc.shelf    = body.shelf    ?? doc.shelf;
 
     doc.category = body.category ?? doc.category;
-    doc.type = body.type ?? doc.type;
+    doc.type     = body.type     ?? doc.type;
     doc.supplier = body.supplier ?? doc.supplier;
-    doc.unit = body.unit ?? doc.unit;
+    doc.unit     = body.unit     ?? doc.unit;
 
-    doc.name = body.name ?? doc.name;
+    doc.name        = body.name        ?? doc.name;
     doc.genericName = body.genericName ?? doc.genericName;
-    doc.details = body.details ?? doc.details;
-    if (body.price !== undefined) doc.price = Number(body.price) || 0;
-    if (body.supplierPrice !== undefined) doc.supplierPrice = Number(body.supplierPrice) || 0;
-    if (body.vat !== undefined) doc.vat = Number(body.vat) || 0;
-    if (body.status !== undefined) doc.status = body.status === "inactive" ? "inactive" : "active";
+    doc.details     = body.details     ?? doc.details;
+    if (body.price          !== undefined) doc.price = Number(body.price) || 0;
+    if (body.supplierPrice  !== undefined) doc.supplierPrice = Number(body.supplierPrice) || 0;
+    if (body.vat            !== undefined) doc.vat = Number(body.vat) || 0;
+    if (body.status         !== undefined) doc.status = body.status === "inactive" ? "inactive" : "active";
 
-    doc.imageUrl = imageUrl;
+    doc.imageUrl   = imageUrl;
     doc.expiryDate = expiryDate;
+
+    // recompute/override totalUnits
+    if (body.totalUnits !== undefined) {
+      doc.totalUnits = Number(body.totalUnits) || 0;
+    } else if (body.boxSize !== undefined || body.boxAmount !== undefined) {
+      const boxAmount = Number(body.boxAmount);
+      let unitsPerBox = 0;
+      const boxSizeToUse = body.boxSize ?? doc.boxSize;
+      if (boxSizeToUse) {
+        const leaf = await LeafSetting.findOne({ leafType: boxSizeToUse }).lean();
+        unitsPerBox = leaf ? Number(leaf.totalNumber) || 0 : productFromTextNumbers(boxSizeToUse);
+      }
+      if (Number.isFinite(boxAmount) && boxAmount > 0 && unitsPerBox > 0) {
+        doc.totalUnits = unitsPerBox * boxAmount;
+      }
+    }
 
     const saved = await doc.save();
     res.json({ message: "Medicine updated", data: saved });
@@ -194,7 +227,6 @@ router.delete("/:id", async (req, res) => {
     const doc = await Medicine.findByIdAndDelete(req.params.id);
     if (!doc) return res.status(404).json({ message: "Medicine not found." });
 
-    // delete file if exists (fix: properly resolve fs path)
     if (doc.imageUrl && doc.imageUrl.startsWith("/uploads/medicines/")) {
       const fpath = toFsPath(doc.imageUrl);
       fs.unlink(fpath, () => {});
