@@ -25,7 +25,60 @@ function newPurchaseId() {
   )}${pad(now.getMinutes())}${pad(now.getSeconds())}-${Math.floor(Math.random() * 1000)}`;
 }
 
-/* ---------- CREATE (simple, like AddMedicine) ---------- */
+function normalizeItems(items = []) {
+  return (items || []).map((it) => {
+    const unitsPerBox = toNum(it.unitsPerBox) || unitsFromPattern(it.boxPattern);
+    const boxQty = toNum(it.boxQty);
+    const quantity = toNum(it.quantity);
+    const supplierPrice = toNum(it.supplierPrice);
+    const totalUnits = boxQty * unitsPerBox + quantity;
+    const lineTotal = totalUnits * supplierPrice;
+
+    return {
+      medicineId: it.medicineId || null,
+      medicineName: (it.medicineName || "").trim(),
+      batchId: it.batchId || "",
+      expiryDate: it.expiryDate ? new Date(it.expiryDate) : null,
+      stockQty: toNum(it.stockQty),
+      boxPattern: it.boxPattern || "",
+      unitsPerBox,
+      boxQty,
+      quantity,
+      supplierPrice,
+      boxMRP: toNum(it.boxMRP),
+      lineTotal,
+    };
+  });
+}
+
+function computeTotals(items = [], vatPercent = 0, discountPercent = 0, paidAmount = 0) {
+  const subTotal = items.reduce((s, r) => s + toNum(r.lineTotal), 0);
+  const vatPct = toNum(vatPercent);
+  const discPct = toNum(discountPercent);
+
+  const vatAmount = (subTotal * vatPct) / 100;
+  const discountAmount = (subTotal * discPct) / 100;
+  const grandTotal = subTotal + vatAmount - discountAmount;
+
+  const paid = toNum(paidAmount);
+  const dueAmount = Math.max(0, grandTotal - paid);
+
+  return { subTotal, vatPercent: vatPct, vatAmount, discountPercent: discPct, discountAmount, grandTotal, paidAmount: paid, dueAmount };
+}
+
+function aggregateUnitsByMedicine(items = []) {
+  // returns Map(medicineIdStr -> unitsAdded)
+  const map = new Map();
+  for (const row of items) {
+    if (!row.medicineId) continue;
+    const key = String(row.medicineId);
+    const units = toNum(row.boxQty) * (toNum(row.unitsPerBox) || 1) + toNum(row.quantity);
+    map.set(key, (map.get(key) || 0) + units);
+  }
+  return map;
+}
+
+/* ---------- CREATE ---------- */
 router.post(["/", "/add"], async (req, res) => {
   try {
     const {
@@ -48,37 +101,8 @@ router.post(["/", "/add"], async (req, res) => {
       return res.status(400).json({ message: "At least one item is required." });
     }
 
-    const normalized = items.map((it) => {
-      const unitsPerBox = toNum(it.unitsPerBox) || unitsFromPattern(it.boxPattern);
-      const totalUnits = toNum(it.boxQty) * unitsPerBox + toNum(it.quantity);
-      const lineTotal = totalUnits * toNum(it.supplierPrice);
-
-      return {
-        medicineId: it.medicineId || null,
-        medicineName: (it.medicineName || "").trim(),
-        batchId: it.batchId || "",
-        expiryDate: it.expiryDate ? new Date(it.expiryDate) : null,
-        stockQty: toNum(it.stockQty),
-        boxPattern: it.boxPattern || "",
-        unitsPerBox,
-        boxQty: toNum(it.boxQty),
-        quantity: toNum(it.quantity),
-        supplierPrice: toNum(it.supplierPrice),
-        boxMRP: toNum(it.boxMRP),
-        lineTotal,
-      };
-    });
-
-    const subTotal = normalized.reduce((s, r) => s + r.lineTotal, 0);
-    const vatPct = toNum(vatPercent);
-    const discPct = toNum(discountPercent);
-
-    const vatAmount = (subTotal * vatPct) / 100;
-    const discountAmount = (subTotal * discPct) / 100;
-    const grandTotal = subTotal + vatAmount - discountAmount;
-
-    const paid = toNum(paidAmount);
-    const dueAmount = Math.max(0, grandTotal - paid);
+    const normalized = normalizeItems(items);
+    const totals = computeTotals(normalized, vatPercent, discountPercent, paidAmount);
 
     const doc = await Purchase.create({
       purchaseId: newPurchaseId(),
@@ -89,23 +113,17 @@ router.post(["/", "/add"], async (req, res) => {
       paymentType: paymentType || "Cash Payment",
       details: details || "",
       items: normalized,
-      subTotal,
-      vatPercent: vatPct,
-      vatAmount,
-      discountPercent: discPct,
-      discountAmount,
-      grandTotal,
-      paidAmount: paid,
-      dueAmount,
+      ...totals,
     });
 
-    // OPTIONAL: increment stock on medicine
-    for (const row of normalized) {
-      if (!row.medicineId) continue;
-      const totalUnits = row.boxQty * row.unitsPerBox + row.quantity;
-      try {
-        await Medicine.findByIdAndUpdate(row.medicineId, { $inc: { stock: totalUnits } });
-      } catch {}
+    // increment stock for each item
+    try {
+      const incMap = aggregateUnitsByMedicine(normalized);
+      for (const [medId, units] of incMap.entries()) {
+        await Medicine.findByIdAndUpdate(medId, { $inc: { stock: units } });
+      }
+    } catch (e) {
+      console.warn("Stock increment warning:", e?.message);
     }
 
     res.status(201).json({ message: "Purchase created", data: doc });
@@ -115,7 +133,7 @@ router.post(["/", "/add"], async (req, res) => {
   }
 });
 
-/* ---------- LIST (simple) ---------- */
+/* ---------- LIST ---------- */
 router.get("/", async (req, res) => {
   try {
     const list = await Purchase.find().sort({ date: -1, createdAt: -1 });
@@ -138,11 +156,110 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+/* ---------- UPDATE (PUT) ---------- */
+// supports PUT /api/purchases/:id and PUT /api/purchases/update/:id
+async function handleUpdate(req, res) {
+  try {
+    const id = req.params.id;
+
+    // 1) load existing doc
+    const existing = await Purchase.findById(id);
+    if (!existing) return res.status(404).json({ message: "Purchase not found." });
+
+    // 2) normalize incoming
+    const {
+      supplierId,
+      supplierName,
+      invoiceNo,
+      date,
+      paymentType,
+      details,
+      vatPercent,
+      discountPercent,
+      paidAmount,
+      items = [],
+    } = req.body;
+
+    if (!supplierName || !String(supplierName).trim()) {
+      return res.status(400).json({ message: "Supplier name is required." });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: "At least one item is required." });
+    }
+
+    const normalized = normalizeItems(items);
+    const totals = computeTotals(normalized, vatPercent, discountPercent, paidAmount);
+
+    // 3) compute stock delta (new - old) grouped by medicine
+    const oldMap = aggregateUnitsByMedicine(existing.items);
+    const newMap = aggregateUnitsByMedicine(normalized);
+
+    const unionKeys = new Set([...oldMap.keys(), ...newMap.keys()]);
+    const ops = [];
+    for (const key of unionKeys) {
+      const oldUnits = oldMap.get(key) || 0;
+      const newUnits = newMap.get(key) || 0;
+      const delta = newUnits - oldUnits; // + means add stock, - means remove stock
+      if (delta !== 0) {
+        ops.push({ medId: key, delta });
+      }
+    }
+
+    // 4) persist the purchase
+    existing.supplierId = supplierId || null;
+    existing.supplierName = supplierName.trim();
+    existing.invoiceNo = invoiceNo || "";
+    existing.date = date ? new Date(date) : existing.date;
+    existing.paymentType = paymentType || "Cash Payment";
+    existing.details = details || "";
+    existing.items = normalized;
+
+    existing.subTotal = totals.subTotal;
+    existing.vatPercent = totals.vatPercent;
+    existing.vatAmount = totals.vatAmount;
+    existing.discountPercent = totals.discountPercent;
+    existing.discountAmount = totals.discountAmount;
+    existing.grandTotal = totals.grandTotal;
+    existing.paidAmount = totals.paidAmount;
+    existing.dueAmount = totals.dueAmount;
+
+    await existing.save();
+
+    // 5) apply stock deltas
+    try {
+      for (const { medId, delta } of ops) {
+        await Medicine.findByIdAndUpdate(medId, { $inc: { stock: delta } });
+      }
+    } catch (e) {
+      console.warn("Stock delta warning:", e?.message);
+    }
+
+    res.json({ message: "Purchase updated", data: existing });
+  } catch (err) {
+    console.error("Update purchase error:", err);
+    res.status(500).json({ message: "Server error while updating purchase." });
+  }
+}
+
+router.put("/:id", handleUpdate);
+router.put("/update/:id", handleUpdate);
+
 /* ---------- DELETE ---------- */
 router.delete("/:id", async (req, res) => {
   try {
     const doc = await Purchase.findByIdAndDelete(req.params.id);
     if (!doc) return res.status(404).json({ message: "Purchase not found." });
+
+    // OPTIONAL: roll back stock (remove previously added units)
+    try {
+      const oldMap = aggregateUnitsByMedicine(doc.items);
+      for (const [medId, units] of oldMap.entries()) {
+        await Medicine.findByIdAndUpdate(medId, { $inc: { stock: -units } });
+      }
+    } catch (e) {
+      console.warn("Stock rollback warning:", e?.message);
+    }
+
     res.json({ message: "Purchase deleted", data: doc });
   } catch (err) {
     console.error("Delete purchase error:", err);

@@ -8,21 +8,23 @@ const path = require("path");
 /* =======================
    Route imports (mounted)
 ======================= */
-const medicineRoutes = require("./routes/medicine");
-const authRoutes = require("./routes/auth");
-const adminStatsRoutes = require("./routes/adminStats");
-const staffRoutes = require("./routes/staff");
-const authGoogleRoutes = require("./routes/authGoogle");
-const customerRoutes = require("./routes/customerRoutes");
-const purchaseRoutes = require("./routes/purchases");
+const medicineRoutes     = require("./routes/medicine");
+const authRoutes         = require("./routes/auth");
+const adminStatsRoutes   = require("./routes/adminStats");
+const staffRoutes        = require("./routes/staff");
+const authGoogleRoutes   = require("./routes/authGoogle");
+const customerRoutes     = require("./routes/customerRoutes");
+const purchaseRoutes     = require("./routes/purchases");
+const invoiceRoutes      = require("./routes/invoice");   // ✅ added
+
 /* =======================
    Models for inline CRUD
 ======================= */
-const Category = require("./models/Category");
-const Type = require("./models/Type");
-const Unit = require("./models/Unit");
-const LeafSetting = require("./models/LeafSetting");
-const Supplier = require("./models/Supplier");
+const Category     = require("./models/Category");
+const Type         = require("./models/Type");
+const Unit         = require("./models/Unit");
+const LeafSetting  = require("./models/LeafSetting");
+const Supplier     = require("./models/Supplier");
 
 dotenv.config();
 const app = express();
@@ -44,13 +46,15 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 /* =======================
    Mounted routes
 ======================= */
-app.use("/api/medicines", medicineRoutes); // handles multipart + image compression, expiryDate, etc.
-app.use("/api/auth", authRoutes);
-app.use("/api/auth", authGoogleRoutes);
-app.use("/api/admin", adminStatsRoutes);
-app.use("/api/staff", staffRoutes);
-app.use("/api/customers", customerRoutes);
-app.use("/api/purchases", purchaseRoutes); 
+app.use("/api/medicines",  medicineRoutes); // handles multipart + image compression, expiryDate, etc.
+app.use("/api/auth",       authRoutes);
+app.use("/api/auth",       authGoogleRoutes);
+app.use("/api/admin",      adminStatsRoutes);
+app.use("/api/staff",      staffRoutes);
+app.use("/api/customers",  customerRoutes);
+app.use("/api/purchases",  purchaseRoutes);
+app.use("/api/invoices",   invoiceRoutes);  // ✅ added
+
 /* =======================
    Categories (INLINE CRUD)
    Base: /api/categories
@@ -361,7 +365,7 @@ app.post("/api/suppliers", async (req, res) => {
 app.get("/api/suppliers", async (_req, res) => {
   try {
     const items = await Supplier.find().sort({ createdAt: -1 });
-  res.json({ data: items });
+    res.json({ data: items });
   } catch (err) {
     console.error("List suppliers error:", err);
     res.status(500).json({ message: "Server error while listing suppliers." });

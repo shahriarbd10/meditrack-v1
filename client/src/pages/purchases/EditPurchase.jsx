@@ -1,35 +1,19 @@
-// src/pages/purchases/AddPurchase.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 
-/* =======================
-   API Endpoints
-======================= */
 const API = {
   suppliers: "http://localhost:5000/api/suppliers",
   leaf: "http://localhost:5000/api/leaf-settings",
   medicines: "http://localhost:5000/api/medicines",
-  purchases: "http://localhost:5000/api/purchases/add",
+  purchasesBase: "http://localhost:5000/api/purchases",
 };
 
-/* =======================
-   Helpers
-======================= */
 const toNum = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 const today = () => new Date().toISOString().slice(0, 10);
 
-// match AddInvoice rule: if both > 0 => qty*boxQty, else whichever is non-zero
-const effQty = (qty, boxQty) => {
-  const q = toNum(qty);
-  const b = toNum(boxQty);
-  if (q > 0 && b > 0) return q * b;
-  return q > 0 ? q : b;
-};
-
 function parseUnitsPerBox(pattern = "") {
-  // still keep this to store along with the row if you need it later
   const nums = String(pattern)
     .toLowerCase()
     .split(/[^0-9]+/g)
@@ -39,10 +23,8 @@ function parseUnitsPerBox(pattern = "") {
   return nums.reduce((a, b) => a * (isNaN(b) ? 1 : b), 1);
 }
 
-/* =======================
-   Component
-======================= */
-export default function AddPurchase() {
+export default function EditPurchase() {
+  const { id } = useParams();
   const navigate = useNavigate();
 
   // dropdowns
@@ -58,8 +40,8 @@ export default function AddPurchase() {
     date: today(),
     paymentType: "Cash Payment",
     details: "",
-    vatPercent: 0,       // %
-    discountPercent: 0,  // %
+    vatPercent: 0,
+    discountPercent: 0,
     paidAmount: 0,
   });
 
@@ -71,7 +53,7 @@ export default function AddPurchase() {
     expiryDate: "",
     stockQty: 0,
     boxPattern: "",
-    unitsPerBox: 1, // stored but not used in math now, for consistency with backend
+    unitsPerBox: 1,
     boxQty: 0,
     quantity: 0,
     supplierPrice: 0,
@@ -80,7 +62,7 @@ export default function AddPurchase() {
   const [rows, setRows] = useState([mkRow()]);
   const lastLeafRef = useRef("");
 
-  /* ---------- load dropdowns ---------- */
+  // load dropdowns + purchase
   useEffect(() => {
     (async () => {
       try {
@@ -92,14 +74,75 @@ export default function AddPurchase() {
         setSuppliers(s.data?.data || []);
         setLeafs(l.data?.data || []);
         setMeds(m.data?.data || m.data?.medicines || []);
-      } catch (e) {
-        console.error(e);
+      } catch (err) {
+        console.error("Dropdown load error:", err);
         alert("Failed to load dropdowns.");
       }
     })();
   }, []);
 
-  /* ---------- helpers ---------- */
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await axios.get(`${API.purchasesBase}/${id}`);
+        const p = res.data?.data || res.data?.purchase || res.data;
+
+        // header defaults + fetched
+        setHead((prev) => ({
+          ...prev,
+          supplierId: p?.supplierId || "",
+          supplierName: p?.supplierName || "",
+          invoiceNo: p?.invoiceNo || "",
+          date: p?.date ? new Date(p.date).toISOString().slice(0, 10) : today(),
+          paymentType: p?.paymentType || "Cash Payment",
+          details: p?.details || "",
+          vatPercent: toNum(p?.vatPercent),
+          discountPercent: toNum(p?.discountPercent),
+          paidAmount: toNum(p?.paidAmount),
+        }));
+
+        // rows/items
+        const items = p?.items || [];
+        setRows(
+          items.length
+            ? items.map((r) => ({
+                medicineId: r.medicineId || "",
+                medicineName: r.medicineName || "",
+                batchId: r.batchId || "",
+                expiryDate: r.expiryDate ? new Date(r.expiryDate).toISOString().slice(0, 10) : "",
+                stockQty: toNum(r.stockQty),
+                boxPattern: r.boxPattern || "",
+                unitsPerBox: r.unitsPerBox || parseUnitsPerBox(r.boxPattern),
+                boxQty: toNum(r.boxQty),
+                quantity: toNum(r.quantity),
+                supplierPrice: toNum(r.supplierPrice),
+                boxMRP: toNum(r.boxMRP),
+              }))
+            : [mkRow()]
+        );
+      } catch (err) {
+        console.error("Load purchase error:", err);
+        alert("Failed to load purchase.");
+        navigate("/dashboard/admin/purchases/list");
+      }
+    })();
+  }, [id, navigate]);
+
+  // totals
+  const totals = useMemo(() => {
+    const sub = rows.reduce((sum, r) => {
+      const upb = r.unitsPerBox || parseUnitsPerBox(r.boxPattern);
+      const totalUnits = toNum(r.boxQty) * upb + toNum(r.quantity);
+      return sum + totalUnits * toNum(r.supplierPrice);
+    }, 0);
+    const vatAmt = (sub * toNum(head.vatPercent)) / 100;
+    const discAmt = (sub * toNum(head.discountPercent)) / 100;
+    const grand = sub + vatAmt - discAmt;
+    const due = Math.max(0, grand - toNum(head.paidAmount));
+    return { sub, vatAmt, discAmt, grand, due };
+  }, [rows, head]);
+
+  // helpers
   const setRow = (i, patch) =>
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
@@ -107,7 +150,7 @@ export default function AddPurchase() {
     const byId = meds.find((x) => x._id === nameOrId);
     const byName =
       byId ||
-      meds.find((x) => (x.name || "").toLowerCase() === String(nameOrId).trim().toLowerCase());
+      meds.find((x) => x.name?.toLowerCase() === String(nameOrId).trim().toLowerCase());
     if (byName) {
       setRow(i, {
         medicineId: byName._id,
@@ -116,12 +159,7 @@ export default function AddPurchase() {
         supplierPrice: byName?.supplierPrice ?? 0,
       });
     } else {
-      setRow(i, {
-        medicineId: "",
-        medicineName: nameOrId,
-        stockQty: 0,
-        supplierPrice: 0,
-      });
+      setRow(i, { medicineId: "", medicineName: nameOrId, stockQty: 0, supplierPrice: 0 });
     }
   };
 
@@ -137,20 +175,6 @@ export default function AddPurchase() {
 
   const removeRow = (i) => setRows((p) => (p.length === 1 ? p : p.filter((_, idx) => idx !== i)));
 
-  /* ---------- totals (multiplicative quantity) ---------- */
-  const totals = useMemo(() => {
-    const sub = rows.reduce((sum, r) => {
-      const qEff = effQty(r.quantity, r.boxQty);
-      return sum + qEff * toNum(r.supplierPrice);
-    }, 0);
-    const vatAmt = (sub * toNum(head.vatPercent)) / 100;
-    const discAmt = (sub * toNum(head.discountPercent)) / 100;
-    const grand = sub + vatAmt - discAmt;
-    const due = Math.max(0, grand - toNum(head.paidAmount));
-    return { sub, vatAmt, discAmt, grand, due };
-  }, [rows, head]);
-
-  /* ---------- submit ---------- */
   const submit = async (e) => {
     e.preventDefault();
     try {
@@ -158,20 +182,20 @@ export default function AddPurchase() {
         ...head,
         items: rows.map((r) => ({
           ...r,
-          // store unitsPerBox for compatibility with your backend schema
           unitsPerBox: r.unitsPerBox || parseUnitsPerBox(r.boxPattern),
         })),
       };
-      await axios.post(API.purchases, payload);
-      alert("✅ Purchase saved");
+      // Update instead of add
+      await axios.put(`${API.purchasesBase}/${id}`, payload);
+      alert("✅ Purchase updated");
       navigate("/dashboard/admin/purchases/list");
     } catch (err) {
       console.error(err);
-      alert(err?.response?.data?.message || "Failed to save purchase.");
+      alert(err?.response?.data?.message || "Failed to update purchase.");
     }
   };
 
-  /* ---------- mirror slider under table ---------- */
+  /* ---------- mirror slider ---------- */
   const scrollerRef = useRef(null);
   const mirrorRef = useRef(null);
   const mirrorInnerRef = useRef(null);
@@ -220,9 +244,6 @@ export default function AddPurchase() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows.length, meds.length, leafs.length, head.vatPercent, head.discountPercent, head.paidAmount]);
 
-  /* =======================
-     Render
-  ======================== */
   return (
     <div className="min-h-screen flex bg-base-200">
       <Sidebar />
@@ -232,7 +253,7 @@ export default function AddPurchase() {
         <div className="mx-auto w-full max-w-full bg-white rounded-xl shadow-xl border border-base-300 overflow-x-hidden min-w-0">
           {/* header bar */}
           <div className="flex items-center justify-between px-4 sm:px-6 md:px-8 py-4 border-b border-base-300">
-            <h1 className="text-xl md:text-2xl font-bold">Add Purchase</h1>
+            <h1 className="text-xl md:text-2xl font-bold">Edit Purchase</h1>
             <Link to="/dashboard/admin/purchases/list" className="btn btn-success btn-sm">
               Purchase List
             </Link>
@@ -249,13 +270,9 @@ export default function AddPurchase() {
                   className="select select-bordered w-full"
                   value={head.supplierId}
                   onChange={(e) => {
-                    const id = e.target.value;
-                    const s = suppliers.find((x) => x._id === id);
-                    setHead((p) => ({
-                      ...p,
-                      supplierId: id,
-                      supplierName: s?.manufacturerName || "",
-                    }));
+                    const sid = e.target.value;
+                    const s = suppliers.find((x) => x._id === sid);
+                    setHead((p) => ({ ...p, supplierId: sid, supplierName: s?.manufacturerName || "" }));
                   }}
                   required
                 >
@@ -349,7 +366,7 @@ export default function AddPurchase() {
                 </thead>
 
                 <tbody className="text-[13px]">
-                  {/* datalist for typing medicine */}
+                  {/* hidden datalist for type-to-select */}
                   <tr className="hidden">
                     <td>
                       <datalist id="meds-list">
@@ -364,9 +381,9 @@ export default function AddPurchase() {
                   </tr>
 
                   {rows.map((r, i) => {
-                    // multiplicative quantity
-                    const qEff = effQty(r.quantity, r.boxQty);
-                    const lineTotal = qEff * toNum(r.supplierPrice);
+                    const unitsPerBox = r.unitsPerBox || parseUnitsPerBox(r.boxPattern);
+                    const totalUnits = toNum(r.boxQty) * unitsPerBox + toNum(r.quantity);
+                    const lineTotal = totalUnits * toNum(r.supplierPrice);
 
                     return (
                       <tr key={i}>
@@ -375,13 +392,12 @@ export default function AddPurchase() {
                             list="meds-list"
                             className="input input-bordered w-full"
                             placeholder="Medicine Name"
-                            value={r.medicineName || r.medicineId}
+                            value={r.medicineName || r.micineId}
                             onChange={(e) => onMedicineTyped(i, e.target.value)}
                             onBlur={(e) => onMedicineTyped(i, e.target.value)}
                             required
                           />
                         </td>
-
                         <td>
                           <input
                             className="input input-bordered w-full"
@@ -390,7 +406,6 @@ export default function AddPurchase() {
                             onChange={(e) => setRow(i, { batchId: e.target.value })}
                           />
                         </td>
-
                         <td>
                           <input
                             type="date"
@@ -400,7 +415,6 @@ export default function AddPurchase() {
                             required
                           />
                         </td>
-
                         <td className="text-right">
                           <input
                             className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
@@ -408,7 +422,6 @@ export default function AddPurchase() {
                             readOnly
                           />
                         </td>
-
                         <td>
                           <select
                             className="select select-bordered w-full"
@@ -428,7 +441,6 @@ export default function AddPurchase() {
                             ))}
                           </select>
                         </td>
-
                         <td className="text-right">
                           <input
                             type="number"
@@ -438,7 +450,6 @@ export default function AddPurchase() {
                             required
                           />
                         </td>
-
                         <td className="text-right">
                           <input
                             type="number"
@@ -448,7 +459,6 @@ export default function AddPurchase() {
                             required
                           />
                         </td>
-
                         <td className="text-right">
                           <input
                             type="number"
@@ -459,7 +469,6 @@ export default function AddPurchase() {
                             required
                           />
                         </td>
-
                         <td className="text-right">
                           <input
                             type="number"
@@ -470,7 +479,6 @@ export default function AddPurchase() {
                             required
                           />
                         </td>
-
                         <td className="text-right">
                           <input
                             className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
@@ -478,7 +486,6 @@ export default function AddPurchase() {
                             readOnly
                           />
                         </td>
-
                         <td className="text-center">
                           <button
                             type="button"
@@ -496,16 +503,12 @@ export default function AddPurchase() {
                     );
                   })}
 
-                  {/* summary rows (right aligned, 11 columns total) */}
+                  {/* summary rows */}
                   <tr>
                     <td colSpan={8}></td>
                     <td className="text-right font-medium">Sub Total:</td>
                     <td>
-                      <input
-                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                        value={totals.sub.toFixed(2)}
-                        readOnly
-                      />
+                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none" value={totals.sub.toFixed(2)} readOnly />
                     </td>
                     <td className="text-center">
                       <button type="button" className="btn btn-ghost btn-xs" onClick={addRow} title="Add Row">
@@ -520,17 +523,10 @@ export default function AddPurchase() {
                     <td colSpan={8}></td>
                     <td className="text-right font-medium">Vat:</td>
                     <td>
-                      <input
-                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                        value={totals.vatAmt.toFixed(2)}
-                        readOnly
-                      />
+                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none" value={totals.vatAmt.toFixed(2)} readOnly />
                     </td>
                     <td className="text-center">
-                      <PercentBox
-                        value={head.vatPercent}
-                        onChange={(v) => setHead((p) => ({ ...p, vatPercent: toNum(v) }))}
-                      />
+                      <PercentBox value={head.vatPercent} onChange={(v) => setHead((p) => ({ ...p, vatPercent: toNum(v) }))} />
                     </td>
                   </tr>
 
@@ -538,17 +534,10 @@ export default function AddPurchase() {
                     <td colSpan={8}></td>
                     <td className="text-right font-medium">Discount:</td>
                     <td>
-                      <input
-                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none"
-                        value={totals.discAmt.toFixed(2)}
-                        readOnly
-                      />
+                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none" value={totals.discAmt.toFixed(2)} readOnly />
                     </td>
                     <td className="text-center">
-                      <PercentBox
-                        value={head.discountPercent}
-                        onChange={(v) => setHead((p) => ({ ...p, discountPercent: toNum(v) }))}
-                      />
+                      <PercentBox value={head.discountPercent} onChange={(v) => setHead((p) => ({ ...p, discountPercent: toNum(v) }))} />
                     </td>
                   </tr>
 
@@ -556,11 +545,7 @@ export default function AddPurchase() {
                     <td colSpan={8}></td>
                     <td className="text-right font-semibold">Grand Total:</td>
                     <td>
-                      <input
-                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold"
-                        value={totals.grand.toFixed(2)}
-                        readOnly
-                      />
+                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold" value={totals.grand.toFixed(2)} readOnly />
                     </td>
                     <td />
                   </tr>
@@ -584,11 +569,7 @@ export default function AddPurchase() {
                     <td colSpan={8}></td>
                     <td className="text-right font-semibold">Due Amount:</td>
                     <td>
-                      <input
-                        className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold"
-                        value={totals.due.toFixed(2)}
-                        readOnly
-                      />
+                      <input className="input input-bordered w-full text-right bg-base-200 pointer-events-none font-semibold" value={totals.due.toFixed(2)} readOnly />
                     </td>
                     <td />
                   </tr>
@@ -623,7 +604,7 @@ export default function AddPurchase() {
                 Full Paid
               </button>
               <button type="submit" className="btn btn-success">
-                Save
+                Save Changes
               </button>
             </div>
           </form>
@@ -633,7 +614,6 @@ export default function AddPurchase() {
   );
 }
 
-/* small UI helper */
 function PercentBox({ value, onChange }) {
   return (
     <label className="input input-bordered input-xs flex items-center gap-1 w-20 mx-auto">

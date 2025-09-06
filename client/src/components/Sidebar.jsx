@@ -33,6 +33,7 @@ export default function Sidebar() {
   const [openMedicine, setOpenMedicine] = useState(false);
   const [openSupplier, setOpenSupplier] = useState(false);
   const [openPurchase, setOpenPurchase] = useState(false);
+  const [openInvoice, setOpenInvoice] = useState(false);
 
   const handleLogout = () => {
     try {
@@ -74,6 +75,12 @@ export default function Sidebar() {
         <path d="M7 18a2 2 0 11-.001 3.999A2 2 0 017 18zm10 0a2 2 0 11-.001 3.999A2 2 0 0117 18zM6 6h15l-2 8H8L6 6zM5 4H2V2h3l1 4H3z"/>
       </svg>
     ),
+    receipt: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="currentColor" className="w-4 mr-3">
+        <path d="M6 2h12l2 2v16l-2-1-2 1-2-1-2 1-2-1-2 1-2-1V4l2-2zm2 5h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/>
+      </svg>
+    ),
     chevron: (open) => (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
         fill="currentColor"
@@ -94,8 +101,8 @@ export default function Sidebar() {
   };
 
   const MEDICINE = {
-    addCategory: "/dashboard/admin/medicines/category/add",   // ✅ match App.jsx
-    categoryList: "/dashboard/admin/medicines/category/list", // ✅ match App.jsx
+    addCategory: "/dashboard/admin/medicines/category/add",
+    categoryList: "/dashboard/admin/medicines/category/list",
     addUnit: "/dashboard/admin/medicines/unit/add",
     unitList: "/dashboard/admin/medicines/unit/list",
     addType: "/dashboard/admin/medicines/type/add",
@@ -114,6 +121,11 @@ export default function Sidebar() {
   const PURCHASE = {
     add: "/dashboard/admin/purchases/add",
     list: "/dashboard/admin/purchases/list",
+  };
+
+  const INVOICE = {
+    add: "/dashboard/admin/invoices/add",
+    list: "/dashboard/admin/invoices/list",
   };
 
   return (
@@ -219,6 +231,26 @@ export default function Sidebar() {
               <ul className="mt-1 ml-4 border-l border-gray-700">
                 <li><SidebarLink to={PURCHASE.add} label="Add Purchase" className="pl-6 py-2" /></li>
                 <li><SidebarLink to={PURCHASE.list} label="Purchase List" className="pl-6 py-2" /></li>
+              </ul>
+            )}
+          </li>
+
+          {/* Invoices */}
+          <li className="px-2">
+            <button
+              onClick={() => setOpenInvoice((v) => !v)}
+              className={`w-full px-4 py-3 flex items-center rounded-sm text-white ${
+                openInvoice ? "bg-lime-600" : "bg-gray-700 hover:bg-gray-600"
+              }`}
+            >
+              {Icon.receipt}
+              <span>Invoice</span>
+              {Icon.chevron(openInvoice)}
+            </button>
+            {openInvoice && (
+              <ul className="mt-1 ml-4 border-l border-gray-700">
+                <li><SidebarLink to={INVOICE.add} label="Add Invoice" className="pl-6 py-2" /></li>
+                <li><SidebarLink to={INVOICE.list} label="Invoice List" className="pl-6 py-2" /></li>
               </ul>
             )}
           </li>

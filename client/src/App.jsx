@@ -51,6 +51,15 @@ import SupplierList from "./pages/suppliers/SupplierList";
 //Purchase
 import AddPurchase from "./pages/purchases/AddPurchase";
 import PurchaseList from "./pages/purchases/PurchaseList";
+import EditPurchase from "./pages/purchases/EditPurchase";
+
+
+//Invoice
+import AddInvoice from "./pages/invoices/AddInvoice";
+import InvoiceList from "./pages/invoices/InvoiceList";
+import InvoicePrint from "./pages/invoices/InvoicePrint";
+
+
 
 
 function App() {
@@ -255,13 +264,13 @@ function App() {
           }
         />
 
-         {/* ===== Purchase (protected) ===== */}
+        {/* ===== Purchase (protected) ===== */}
         <Route
-        path="/dashboard/admin/purchases/add"
-        element={
-          <AdminProtectedRoute>
-            <AddPurchase />
-          </AdminProtectedRoute>
+          path="/dashboard/admin/purchases/add"
+          element={
+            <AdminProtectedRoute>
+              <AddPurchase />
+            </AdminProtectedRoute>
           }
         />
         <Route
@@ -269,6 +278,39 @@ function App() {
           element={
             <AdminProtectedRoute>
               <PurchaseList />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/purchases/edit/:id"
+          element={
+            <AdminProtectedRoute>
+              <EditPurchase />
+            </AdminProtectedRoute>
+          }
+        />
+        {/* ===== Invoice (protected) ===== */}
+        <Route
+          path="/dashboard/admin/invoices/add"
+          element={
+            <AdminProtectedRoute>
+              <AddInvoice />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/invoices/list"
+          element={
+            <AdminProtectedRoute>
+              <InvoiceList />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/invoices/view/:id"
+          element={
+            <AdminProtectedRoute>
+              <InvoicePrint />
             </AdminProtectedRoute>
           }
         />
