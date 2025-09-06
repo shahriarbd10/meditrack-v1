@@ -60,7 +60,8 @@ import InvoiceList from "./pages/invoices/InvoiceList";
 import InvoicePrint from "./pages/invoices/InvoicePrint";
 import EditInvoice from "./pages/invoices/EditInvoice";
 
-
+//Report
+import Reports from "./pages/reports/Reports";
 
 
 function App() {
@@ -325,7 +326,16 @@ function App() {
             </AdminProtectedRoute>
           }
         />
+        <Route
+          path="/dashboard/admin/reports"
+          element={
+            <AdminProtectedRoute>
+              <Reports />
+            </AdminProtectedRoute>
+          }
+        />    
 
+    
 
 
 
