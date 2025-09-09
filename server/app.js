@@ -4,27 +4,31 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const path = require("path");
+const fs = require("fs");
 
 /* =======================
    Route imports (mounted)
 ======================= */
-const medicineRoutes     = require("./routes/medicine");
-const authRoutes         = require("./routes/auth");
-const adminStatsRoutes   = require("./routes/adminStats");
-const staffRoutes        = require("./routes/staff");
-const authGoogleRoutes   = require("./routes/authGoogle");
-const customerRoutes     = require("./routes/customerRoutes");
-const purchaseRoutes     = require("./routes/purchases");
-const invoiceRoutes      = require("./routes/invoice");   
-const reportsRoutes = require("./routes/reports");
+const medicineRoutes   = require("./routes/medicine");
+const authRoutes       = require("./routes/auth");
+const adminStatsRoutes = require("./routes/adminStats");
+const staffRoutes      = require("./routes/staff");
+const authGoogleRoutes = require("./routes/authGoogle");
+const customerRoutes   = require("./routes/customerRoutes");
+const purchaseRoutes   = require("./routes/purchases");
+const invoiceRoutes    = require("./routes/invoice");
+const reportsRoutes    = require("./routes/reports");
+const pharmacyInventoryRoutes = require("./routes/pharmacyInventory");
+const pharmacyRoutes = require("./routes/pharmacies");
+
 /* =======================
    Models for inline CRUD
 ======================= */
-const Category     = require("./models/Category");
-const Type         = require("./models/Type");
-const Unit         = require("./models/Unit");
-const LeafSetting  = require("./models/LeafSetting");
-const Supplier     = require("./models/Supplier");
+const Category    = require("./models/Category");
+const Type        = require("./models/Type");
+const Unit        = require("./models/Unit");
+const LeafSetting = require("./models/LeafSetting");
+const Supplier    = require("./models/Supplier");
 
 dotenv.config();
 const app = express();
@@ -38,23 +42,34 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: "1mb" }));
 
-// Serve uploaded images (thumbnails, etc.)
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+// JSON & URL-Encoded parsers (multipart handled by multer in routes)
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true }));
+
+// Ensure uploads directory exists (for auth/logo, medicines, etc.)
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Serve uploaded images (thumbnails, logos, etc.)
+app.use("/uploads", express.static(uploadsDir));
 
 /* =======================
    Mounted routes
 ======================= */
-app.use("/api/medicines",  medicineRoutes); // handles multipart + image compression, expiryDate, etc.
-app.use("/api/auth",       authRoutes);
-app.use("/api/auth",       authGoogleRoutes);
-app.use("/api/admin",      adminStatsRoutes);
-app.use("/api/staff",      staffRoutes);
-app.use("/api/customers",  customerRoutes);
-app.use("/api/purchases",  purchaseRoutes);
-app.use("/api/invoices",   invoiceRoutes);  
+app.use("/api/medicines", medicineRoutes); // handles multipart + image compression, expiryDate, etc.
+app.use("/api/auth", authRoutes);          // includes /register (with multer) and /login
+app.use("/api/auth", authGoogleRoutes);    // /google-login
+app.use("/api/admin", adminStatsRoutes);
+app.use("/api/staff", staffRoutes);
+app.use("/api/customers", customerRoutes);
+app.use("/api/purchases", purchaseRoutes);
+app.use("/api/invoices", invoiceRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/pharmacy-inventory", pharmacyInventoryRoutes);
+app.use("/api/pharmacies", pharmacyRoutes);
 /* =======================
    Categories (INLINE CRUD)
    Base: /api/categories
@@ -433,3 +448,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
+module.exports = app;

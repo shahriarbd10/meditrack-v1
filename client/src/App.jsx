@@ -13,6 +13,7 @@ import Homepage from "./components/Home/Homepage";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
+import RegisterPharmacy from "./pages/auth/RegisterPharmacy";
 
 // Customers
 import AddCustomer from "./pages/customers/AddCustomer";
@@ -53,7 +54,6 @@ import AddPurchase from "./pages/purchases/AddPurchase";
 import PurchaseList from "./pages/purchases/PurchaseList";
 import EditPurchase from "./pages/purchases/EditPurchase";
 
-
 //Invoice
 import AddInvoice from "./pages/invoices/AddInvoice";
 import InvoiceList from "./pages/invoices/InvoiceList";
@@ -63,7 +63,6 @@ import EditInvoice from "./pages/invoices/EditInvoice";
 //Report
 import Reports from "./pages/reports/Reports";
 
-
 function App() {
   return (
     <Router>
@@ -72,6 +71,8 @@ function App() {
         <Route path="/" element={<Homepage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        {/* NEW: Detailed pharmacy register page */}
+        <Route path="/register/pharmacy" element={<RegisterPharmacy />} />
 
         {/* ===== Entry ===== */}
         <Route path="/dashboard" element={<Dashboard />} />
@@ -222,23 +223,23 @@ function App() {
           }
         />
 
-        {/* ===== Medicine: Unit / Leaf (placeholders for now) ===== */}
+        {/* ===== Medicine: Unit / Leaf (protected) ===== */}
         <Route
-              path="/dashboard/admin/medicines/unit/add"
-              element={
-              <AdminProtectedRoute>
-                <AddUnit />
-              </AdminProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard/admin/medicines/unit/list"
-            element={
-              <AdminProtectedRoute>
-                <UnitList />
-              </AdminProtectedRoute>
-            }
-          />
+          path="/dashboard/admin/medicines/unit/add"
+          element={
+            <AdminProtectedRoute>
+              <AddUnit />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/medicines/unit/list"
+          element={
+            <AdminProtectedRoute>
+              <UnitList />
+            </AdminProtectedRoute>
+          }
+        />
 
         <Route
           path="/dashboard/admin/medicines/leaf-setting"
@@ -248,13 +249,14 @@ function App() {
             </AdminProtectedRoute>
           }
         />
-         {/* ===== Supplier (protected) ===== */}
+
+        {/* ===== Supplier (protected) ===== */}
         <Route
-        path="/dashboard/admin/suppliers/add"
-        element={
-          <AdminProtectedRoute>
-            <AddSupplier />
-          </AdminProtectedRoute>
+          path="/dashboard/admin/suppliers/add"
+          element={
+            <AdminProtectedRoute>
+              <AddSupplier />
+            </AdminProtectedRoute>
           }
         />
         <Route
@@ -292,7 +294,6 @@ function App() {
           }
         />
 
-        
         {/* ===== Invoice (protected) ===== */}
         <Route
           path="/dashboard/admin/invoices/add"
@@ -333,12 +334,7 @@ function App() {
               <Reports />
             </AdminProtectedRoute>
           }
-        />    
-
-    
-
-
-
+        />
       </Routes>
     </Router>
   );
