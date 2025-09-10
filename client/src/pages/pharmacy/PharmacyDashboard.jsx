@@ -50,7 +50,7 @@ export default function PharmacyDashboard() {
     batchNo: "",
     stock: 0,
     minStock: 10,
-    purchasePrice: 0,
+    purchasePrice: 0, // BUY price (pharmacy-specific)
     sellingPrice: 0,
     vat: 0,
     expiryDate: "",
@@ -191,18 +191,40 @@ export default function PharmacyDashboard() {
     }
   };
 
+  // NEW: when selecting a medicine, prefill default prices/vat from dataset
+  useEffect(() => {
+    if (!selectedMed) return;
+    setAddForm((f) => ({
+      ...f,
+      purchasePrice:
+        f.purchasePrice && f.purchasePrice > 0
+          ? f.purchasePrice
+          : Number(selectedMed.supplierPrice) || 0,
+      sellingPrice:
+        f.sellingPrice && f.sellingPrice > 0
+          ? f.sellingPrice
+          : Number(selectedMed.price) || 0,
+      vat:
+        f.vat && f.vat > 0
+          ? f.vat
+          : Number(selectedMed.vat) || 0,
+    }));
+  }, [selectedMed]);
+
   const handleCreateInv = async () => {
     if (!ownerId || !selectedMed?._id) return;
     try {
       const payload = {
         pharmacyId: ownerId,
         medicineId: selectedMed._id,
-        ...addForm,
+        batchNo: addForm.batchNo,
         stock: Number(addForm.stock || 0),
         minStock: Number(addForm.minStock || 10),
         purchasePrice: Number(addForm.purchasePrice || 0),
         sellingPrice: Number(addForm.sellingPrice || 0),
         vat: Number(addForm.vat || 0),
+        expiryDate: addForm.expiryDate || null,
+        notes: addForm.notes || "",
       };
       const res = await axios.post(API.inventory, payload);
       const row = res?.data?.data;
@@ -287,9 +309,7 @@ export default function PharmacyDashboard() {
     const s = medSearch.toLowerCase();
     return meds
       .filter((m) => {
-        const flds = [m.name, m.genericName, m.category]
-          .filter(Boolean)
-          .map((x) => String(x).toLowerCase());
+        const flds = [m.name, m.genericName, m.category].filter(Boolean).map((x) => String(x).toLowerCase());
         return flds.some((f) => f.includes(s));
       })
       .slice(0, 100);
@@ -691,7 +711,7 @@ function StaffTab({ staffLoading, staffMsg, staffList, staffForm, setStaffForm, 
 function ProfileTab({ user, pharmacy, edit, setEdit, onSave, updating }) {
   return (
     <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* User (owner) info - read-only for now */}
+      {/* User (owner) info - read-only */}
       <div className="card bg-white shadow-md rounded-xl p-4">
         <h2 className="text-lg font-semibold mb-2">User Information</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -863,6 +883,9 @@ function AddFromDBModal({
                           <div className="text-xs text-base-content/60">
                             {m.genericName || "—"} • {m.category || "General"}
                           </div>
+                          <div className="text-xs text-base-content/60 mt-1">
+                            Default sell: {Number(m.price || 0).toFixed(2)} | Supplier: {Number(m.supplierPrice || 0).toFixed(2)}
+                          </div>
                         </button>
                       ))
                     )}
@@ -895,7 +918,7 @@ function AddFromDBModal({
                         onChange={(v) => setAddForm((f) => ({ ...f, minStock: v }))}
                       />
                       <NumInput
-                        label="Purchase Price"
+                        label="Purchase Price (BUY)"
                         value={addForm.purchasePrice}
                         onChange={(v) => setAddForm((f) => ({ ...f, purchasePrice: v }))}
                       />

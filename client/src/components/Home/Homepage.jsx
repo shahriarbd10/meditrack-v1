@@ -1,10 +1,10 @@
 // src/components/Home/Homepage.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API = "http://localhost:5000/api/medicines";
+const API_PUBLIC_INV = "http://localhost:5000/api/pharmacy-inventory/public";
 const PAGE_SIZE = 24;
 
 /**
@@ -13,13 +13,12 @@ const PAGE_SIZE = 24;
  * 2) Hero (healthcare gradient + CTA)
  * 3) Trust / Feature Highlights (icons)
  * 4) Search & Sort Toolbar
- * 5) Medicines Grid (cards with hover + badges)
+ * 5) Medicines Grid (cards) ← now from pharmacy inventory
  * 6) CTA Banner
  * 7) Footer
  */
 export default function Homepage() {
-  const [allMeds, setAllMeds] = useState([]);
-  const [pageMeds, setPageMeds] = useState([]);
+  const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -37,44 +36,25 @@ export default function Homepage() {
     return () => clearTimeout(t);
   }, [q]);
 
-  // Fetch meds: prefer server paging; fallback to client paging
+  // Fetch public inventory (server paging + sorting)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setErr("");
       try {
-        const res = await axios.get(`${API}?page=${page}&limit=${PAGE_SIZE}`);
-        const maybeDataArr = res?.data?.data;
-        const maybeLegacyArr = res?.data?.medicines;
-        const maybeTotal = res?.data?.totalPages;
-
-        if (Array.isArray(maybeDataArr) && typeof maybeTotal === "number") {
-          if (!cancelled) {
-            setPageMeds(maybeDataArr);
-            setAllMeds([]);
-            setTotalPages(Math.max(1, maybeTotal));
-          }
-        } else if (Array.isArray(maybeLegacyArr) && typeof maybeTotal === "number") {
-          if (!cancelled) {
-            setPageMeds(maybeLegacyArr);
-            setAllMeds([]);
-            setTotalPages(Math.max(1, maybeTotal));
-          }
-        } else {
-          // Client paging fallback
-          const resAll = await axios.get(API);
-          const list = resAll?.data?.data ?? resAll?.data?.medicines ?? [];
-          if (!Array.isArray(list)) throw new Error("Invalid medicines payload");
-          if (!cancelled) {
-            setPageMeds([]);
-            setAllMeds(list);
-            setTotalPages(Math.max(1, Math.ceil(list.length / PAGE_SIZE)));
-          }
+        const url =
+          `${API_PUBLIC_INV}?page=${page}&limit=${PAGE_SIZE}` +
+          `&sortBy=${encodeURIComponent(sortBy)}&sortDir=${encodeURIComponent(sortDir)}` +
+          (debouncedQ ? `&q=${encodeURIComponent(debouncedQ)}` : "");
+        const res = await axios.get(url);
+        if (!cancelled) {
+          setRows(Array.isArray(res?.data?.data) ? res.data.data : []);
+          setTotalPages(Math.max(1, Number(res?.data?.totalPages) || 1));
         }
       } catch (e) {
         console.error(e);
-        if (!cancelled) setErr(e?.response?.data?.message || "Failed to load medicines");
+        if (!cancelled) setErr(e?.response?.data?.message || "Failed to load inventory");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -82,52 +62,7 @@ export default function Homepage() {
     return () => {
       cancelled = true;
     };
-  }, [page]);
-
-  // Client filtering + sorting (only when client paging)
-  const filteredAll = useMemo(() => {
-    let list = allMeds;
-    if (debouncedQ) {
-      const s = debouncedQ.toLowerCase();
-      list = list.filter((m) => {
-        const fields = [m.name, m.genericName, m.category, m.supplier, m.type, m.unit]
-          .filter(Boolean)
-          .map((x) => String(x).toLowerCase());
-        return fields.some((f) => f.includes(s));
-      });
-    }
-    // Sort
-    list = [...list].sort((a, b) => {
-      const dir = sortDir === "desc" ? -1 : 1;
-      if (sortBy === "name") return dir * String(a.name || "").localeCompare(String(b.name || ""));
-      if (sortBy === "price") return dir * ((Number(a.price) || 0) - (Number(b.price) || 0));
-      if (sortBy === "expiryDate") {
-        const ad = a.expiryDate ? new Date(a.expiryDate).getTime() : 0;
-        const bd = b.expiryDate ? new Date(b.expiryDate).getTime() : 0;
-        return dir * (ad - bd);
-      }
-      const ac = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bc = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dir * (ac - bc);
-    });
-    return list;
-  }, [allMeds, debouncedQ, sortBy, sortDir]);
-
-  // Page slice
-  const currentClientPage = useMemo(() => {
-    if (pageMeds.length > 0) return pageMeds;
-    const start = (page - 1) * PAGE_SIZE;
-    return filteredAll.slice(start, start + PAGE_SIZE);
-  }, [pageMeds, filteredAll, page]);
-
-  // Recompute total pages when filtering in client mode
-  useEffect(() => {
-    if (allMeds.length > 0) {
-      const pages = Math.max(1, Math.ceil(filteredAll.length / PAGE_SIZE));
-      setTotalPages(pages);
-      setPage((p) => Math.min(p, pages));
-    }
-  }, [filteredAll.length, allMeds.length]);
+  }, [page, debouncedQ, sortBy, sortDir]);
 
   const handlePrev = () => setPage((p) => Math.max(1, p - 1));
   const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
@@ -206,7 +141,10 @@ export default function Homepage() {
                   ref={qRef}
                   type="text"
                   value={q}
-                  onChange={(e) => setQ(e.target.value)}
+                  onChange={(e) => {
+                    setQ(e.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Search medicines, generics, category…"
                   className="grow"
                 />
@@ -216,7 +154,10 @@ export default function Homepage() {
               <select
                 className="select select-bordered select-sm"
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setPage(1);
+                }}
                 aria-label="Sort by"
               >
                 <option value="createdAt">Newest</option>
@@ -226,7 +167,10 @@ export default function Homepage() {
               </select>
               <button
                 className="btn btn-outline btn-sm"
-                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                onClick={() => {
+                  setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                  setPage(1);
+                }}
                 aria-label="Toggle sort direction"
               >
                 {sortDir === "asc" ? "Asc" : "Desc"}
@@ -247,8 +191,8 @@ export default function Homepage() {
             <GridSkeleton />
           ) : err ? (
             <div className="alert alert-error justify-center">{err}</div>
-          ) : currentClientPage.length === 0 ? (
-            <EmptyState onReset={() => setQ("")} />
+          ) : rows.length === 0 ? (
+            <EmptyState onReset={() => { setQ(""); setPage(1); }} />
           ) : (
             <>
               <motion.div
@@ -256,16 +200,16 @@ export default function Homepage() {
                 className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"
               >
                 <AnimatePresence>
-                  {currentClientPage.map((med) => (
+                  {rows.map((row) => (
                     <motion.div
                       layout
-                      key={med._id}
+                      key={row._id}
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.25 }}
                     >
-                      <MiniMedicineCard med={med} />
+                      <MiniMedicineCard row={row} />
                     </motion.div>
                   ))}
                 </AnimatePresence>
@@ -372,21 +316,35 @@ function EmptyState({ onReset }) {
   );
 }
 
-function MiniMedicineCard({ med }) {
-  const imgSrc = med?.imageUrl
-    ? /^https?:\/\//i.test(med.imageUrl)
-      ? med.imageUrl
-      : `http://localhost:5000${med.imageUrl}`
-    : med?.picture || "https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp";
+function fmtBDT(n) {
+  const num = Number(n) || 0;
+  return `৳${num.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
-  const name = med?.name || "—";
-  const generic = med?.genericName || "—";
-  const unit = med?.unit || "";
-  const strength = med?.strength || med?.amount || "";
-  const price = Number(med?.price) || 0;
-  const vat = Number(med?.vat) || 0;
-  const expiryStr = med?.expiryDate ? new Date(med.expiryDate).toLocaleDateString() : "";
-  const isExpired = med?.expiryDate ? new Date(med.expiryDate) < new Date() : false;
+function MiniMedicineCard({ row }) {
+  const m = row?.medicine || {};
+  const p = row?.pharmacy || {};
+
+  const imgSrc = m?.imageUrl
+    ? /^https?:\/\//i.test(m.imageUrl)
+      ? m.imageUrl
+      : `http://localhost:5000${m.imageUrl}`
+    : "https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp";
+
+  const name = m?.name || "—";
+  const generic = m?.genericName || "—";
+  const unit = m?.unit || "";
+  const strength = m?.strength || m?.amount || "";
+  const vat = Number(row?.vat ?? m?.vat ?? 0) || 0;
+
+  const expiryStr = row?.expiryDate ? new Date(row.expiryDate).toLocaleDateString() : "";
+  const isExpired = row?.expiryDate ? new Date(row.expiryDate) < new Date() : false;
+
+  const pharmacyName = p?.pharmacyName || "Pharmacy";
+  const pharmacyLoc =
+    p?.address?.district || p?.address?.division
+      ? [p?.address?.district, p?.address?.division].filter(Boolean).join(", ")
+      : "";
 
   return (
     <article className="card bg-base-100 shadow-sm w-full max-w-[220px] border border-base-200 hover:shadow-md transition-transform hover:-translate-y-0.5">
@@ -398,7 +356,7 @@ function MiniMedicineCard({ med }) {
           loading="lazy"
         />
         {unit && <span className="badge badge-neutral absolute left-2 top-2">{unit}</span>}
-        {med?.expiryDate && (
+        {row?.expiryDate && (
           <span className={`badge absolute right-2 top-2 ${isExpired ? "badge-error" : "badge-warning"}`}>
             {isExpired ? "Expired" : "Expiry"}: {expiryStr}
           </span>
@@ -411,13 +369,25 @@ function MiniMedicineCard({ med }) {
         <div className="text-xs text-base-content/70 truncate" title={`Generic: ${generic}`}>
           {generic}
         </div>
+
+        {/* Pharmacy line */}
+        <div className="mt-2 text-[11px] text-base-content/70 truncate" title={pharmacyName}>
+          🏪 <span className="font-medium">{pharmacyName}</span>
+          {pharmacyLoc ? <span className="opacity-70"> • {pharmacyLoc}</span> : null}
+        </div>
+
+        {/* Strength + VAT */}
         <div className="mt-2 flex items-center justify-between text-xs">
           <span className="text-base-content/60">{strength || "—"}</span>
           {vat > 0 && <span className="badge badge-outline">VAT {vat.toFixed(0)}%</span>}
         </div>
-        <div className="mt-1 text-sm font-semibold">${price.toFixed(2)}</div>
+
+        {/* Selling price (BDT) */}
+        <div className="mt-1 text-sm font-semibold">{fmtBDT(row?.sellingPrice)}</div>
+
         <div className="card-actions justify-end mt-2">
-          <Link to={`/medicine-info/${med._id}`} className="btn btn-primary btn-xs px-3 py-1">
+          {/* Details now targets inventory row, not master medicine */}
+          <Link to={`/pharmacy-inventory/${row._id}`} className="btn btn-primary btn-xs px-3 py-1">
             Details
           </Link>
         </div>

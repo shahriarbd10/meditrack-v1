@@ -63,6 +63,11 @@ import EditInvoice from "./pages/invoices/EditInvoice";
 //Report
 import Reports from "./pages/reports/Reports";
 
+//PharmacyInventory
+import PharmacyInventoryDetails from "./pages/PharmacyInventoryDetails";
+
+
+
 function App() {
   return (
     <Router>
@@ -73,6 +78,11 @@ function App() {
         <Route path="/register" element={<Register />} />
         {/* NEW: Detailed pharmacy register page */}
         <Route path="/register/pharmacy" element={<RegisterPharmacy />} />
+        <Route
+          path="/pharmacy-inventory/:id"
+          element={<PharmacyInventoryDetails />}
+        />
+
 
         {/* ===== Entry ===== */}
         <Route path="/dashboard" element={<Dashboard />} />
