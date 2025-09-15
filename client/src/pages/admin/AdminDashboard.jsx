@@ -10,6 +10,14 @@ import Sidebar from "../../components/Sidebar";
 const API = {
   stats: "http://localhost:5000/api/admin/stats",
   medicines: "http://localhost:5000/api/medicines",
+
+  // --- Approvals (admin) ---
+  approvalsList: (status = "pending") =>
+    `http://localhost:5000/api/approvals?status=${encodeURIComponent(status)}`,
+  approve: (approvalId) =>
+    `http://localhost:5000/api/approvals/${approvalId}/approve`,
+  reject: (approvalId) =>
+    `http://localhost:5000/api/approvals/${approvalId}/reject`,
 };
 
 /* =======================
@@ -34,25 +42,41 @@ const formatBDT = (n = 0) =>
     maximumFractionDigits: 0,
   }).format(Number(n) || 0);
 
+/* =======================
+   Main
+======================= */
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
 
   /* ---- Data ---- */
   const [stats, setStats] = useState({
     totalPharmacies: 0,
     totalStaff: 0,
-    activeUsers: 0,
+    activeUsers: 0, // still fetched; not displayed
   });
   const [medicines, setMedicines] = useState([]);
+
+  // Approvals
+  const [pendingRegs, setPendingRegs] = useState([]);
+  const [approvedRegs, setApprovedRegs] = useState([]);
+  const [rejectedRegs, setRejectedRegs] = useState([]);
 
   /* ---- UI/State ---- */
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingMeds, setLoadingMeds] = useState(true);
   const [errMeds, setErrMeds] = useState("");
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive
   const [sortBy, setSortBy] = useState("createdAt"); // createdAt | name | stock | price
   const [sortDir, setSortDir] = useState("desc"); // asc | desc
+
+  // approvals UI
+  const [approvalsTab, setApprovalsTab] = useState("pending"); // pending | approved | rejected
+  const [loadingApprovals, setLoadingApprovals] = useState(true);
+  const [approvalsMsg, setApprovalsMsg] = useState("");
+  const [approvalsSearch, setApprovalsSearch] = useState("");
 
   /* ---- Effects ---- */
   useEffect(() => {
@@ -67,7 +91,7 @@ export default function AdminDashboard() {
           activeUsers: safeNum(s.activeUsers),
         });
       } catch (_) {
-        // keep defaults; subtle UI handles
+        // keep defaults
       } finally {
         setLoadingStats(false);
       }
@@ -90,7 +114,33 @@ export default function AdminDashboard() {
     })();
   }, []);
 
-  /* ---- Derived ---- */
+  useEffect(() => {
+    // Load approvals lists
+    (async () => {
+      try {
+        setLoadingApprovals(true);
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const [p, a, r] = await Promise.all([
+          axios.get(API.approvalsList("pending"), { headers }),
+          axios.get(API.approvalsList("approved"), { headers }),
+          axios.get(API.approvalsList("rejected"), { headers }),
+        ]);
+
+        setPendingRegs(Array.isArray(p?.data?.data) ? p.data.data : p?.data || []);
+        setApprovedRegs(Array.isArray(a?.data?.data) ? a.data.data : a?.data || []);
+        setRejectedRegs(Array.isArray(r?.data?.data) ? r.data.data : r?.data || []);
+        setApprovalsMsg("");
+      } catch (e) {
+        console.error("approvals load", e);
+        setApprovalsMsg("Failed to load registrations.");
+      } finally {
+        setLoadingApprovals(false);
+      }
+    })();
+    // eslint-disable-next-line
+  }, []);
+
+  /* ---- Derived (medicines) ---- */
   const totalActiveMeds = useMemo(
     () => medicines.filter((m) => (m.status || "active") === "active").length,
     [medicines]
@@ -142,7 +192,6 @@ export default function AdminDashboard() {
           bv = safeNum(b.price ?? b.unitPrice ?? b.sellingPrice);
           break;
         default:
-          // createdAt / fallback
           av = new Date(a.createdAt || 0).getTime();
           bv = new Date(b.createdAt || 0).getTime();
       }
@@ -156,7 +205,6 @@ export default function AdminDashboard() {
   const recentMeds = useMemo(() => filteredMeds.slice(0, 8), [filteredMeds]);
 
   const lowStockMeds = useMemo(() => {
-    // Use dynamic threshold: medicine.minStock || 10
     const take = (m) => safeNum(m.totalUnits ?? m.stock ?? m.availableQty);
     const thr = (m) => safeNum(m.minStock, 10);
     return [...medicines]
@@ -189,6 +237,39 @@ export default function AdminDashboard() {
   }, [medicines]);
   const expiringSoonCount = expiringSoonList.length;
 
+  /* ---- Derived (approvals filtered by search) ---- */
+  const approvalsRows = approvalsTab === "approved"
+    ? approvedRegs
+    : approvalsTab === "rejected"
+    ? rejectedRegs
+    : pendingRegs;
+
+  const approvalsFiltered = useMemo(() => {
+    if (!approvalsSearch.trim()) return approvalsRows;
+    const q = norm(approvalsSearch);
+    return approvalsRows.filter((row) => {
+      const p = row.pharmacy || {};
+      const u = row.owner || row.user || {};
+      const address = p?.address
+        ? [p.address.street, p.address.upazila, p.address.district, p.address.division]
+            .filter(Boolean)
+            .join(", ")
+        : "";
+      return (
+        norm(p.pharmacyName || "").includes(q) ||
+        norm(p.pharmacyType || "").includes(q) ||
+        norm(p.licenseNo || "").includes(q) ||
+        norm(p.phone || "").includes(q) ||
+        norm(p.website || "").includes(q) ||
+        norm(address).includes(q) ||
+        norm(u.name || "").includes(q) ||
+        norm(u.email || "").includes(q) ||
+        norm(u.phone || "").includes(q)
+      );
+    });
+  }, [approvalsRows, approvalsSearch]);
+
+
   /* ---- Actions ---- */
   const handleLogout = () => {
     try {
@@ -198,7 +279,59 @@ export default function AdminDashboard() {
     navigate("/login");
   };
 
-  /* ---- Loading flags ---- */
+  const refreshApprovals = async () => {
+    try {
+      setLoadingApprovals(true);
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const [p, a, r] = await Promise.all([
+        axios.get(API.approvalsList("pending"), { headers }),
+        axios.get(API.approvalsList("approved"), { headers }),
+        axios.get(API.approvalsList("rejected"), { headers }),
+      ]);
+      setPendingRegs(Array.isArray(p?.data?.data) ? p.data.data : p?.data || []);
+      setApprovedRegs(Array.isArray(a?.data?.data) ? a.data.data : a?.data || []);
+      setRejectedRegs(Array.isArray(r?.data?.data) ? r.data.data : r?.data || []);
+      setApprovalsMsg("");
+    } catch (e) {
+      console.error(e);
+      setApprovalsMsg("Failed to refresh registrations.");
+    } finally {
+      setLoadingApprovals(false);
+    }
+  };
+
+  const handleApprove = async (approvalId) => {
+    try {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(API.approve(approvalId), {}, { headers });
+      await refreshApprovals();
+    } catch (e) {
+      console.error("approve", e);
+      setApprovalsMsg(
+        e?.response?.data?.message || e?.response?.data?.msg || "Failed to approve"
+      );
+    }
+  };
+
+  const handleReject = async (approvalId) => {
+    try {
+      const reason = window.prompt("Enter rejection reason (optional):", "");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      await axios.post(
+        API.reject(approvalId),
+        { reason: reason || "" },
+        { headers }
+      );
+      await refreshApprovals();
+    } catch (e) {
+      console.error("reject", e);
+      setApprovalsMsg(
+        e?.response?.data?.message || e?.response?.data?.msg || "Failed to reject"
+      );
+    }
+  };
+
+  /* ---- Flags ---- */
   const isLoading = loadingStats || loadingMeds;
 
   return (
@@ -217,7 +350,7 @@ export default function AdminDashboard() {
             </p>
           </div>
 
-        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <Link to="/dashboard/admin/medicines/add" className="btn btn-primary btn-sm">
               + Add Medicine
             </Link>
@@ -242,11 +375,12 @@ export default function AdminDashboard() {
               loading={loadingStats}
               icon={<UsersIcon />}
             />
+            {/* Replaced Active Users with Expiry Alerts */}
             <StatCard
-              title="Active Users"
-              value={stats.activeUsers}
-              loading={loadingStats}
-              icon={<ActiveIcon />}
+              title="Expiry Alerts (30d)"
+              value={expiringSoonCount}
+              loading={loadingMeds}
+              icon={<CalendarTiny />}
             />
             <StatCard
               title="Active Medicines"
@@ -255,10 +389,10 @@ export default function AdminDashboard() {
               icon={<PillIcon />}
             />
             <StatCard
-              title="Expiry Alerts (30d)"
-              value={expiringSoonCount}
-              loading={loadingMeds}
-              icon={<CalendarTiny />}
+              title="Pending Approvals"
+              value={pendingRegs.length}
+              loading={loadingApprovals}
+              icon={<ClipboardCheckIcon />}
             />
           </div>
 
@@ -284,7 +418,265 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        {/* Controls */}
+        {/* ======= Approvals: Pharmacy Registrations ======= */}
+        <section className="card bg-white shadow-md rounded-xl p-4 md:p-5 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg md:text-xl font-semibold">Pharmacy Registrations</h2>
+              <div className="tabs tabs-boxed">
+                {["pending", "approved", "rejected"].map((t) => (
+                  <a
+                    key={t}
+                    role="tab"
+                    className={`tab ${approvalsTab === t ? "tab-active" : ""}`}
+                    onClick={() => setApprovalsTab(t)}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </a>
+                ))}
+              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={refreshApprovals}
+                title="Refresh"
+              >
+                <RefreshIcon />
+              </button>
+            </div>
+
+            {/* Search for registrations */}
+            <div className="w-full md:w-80">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={approvalsSearch}
+                  onChange={(e) => setApprovalsSearch(e.target.value)}
+                  placeholder="Search by name, email, license, address…"
+                  className="input input-bordered w-full pl-10"
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">
+                  <SearchIcon />
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {approvalsMsg && <div className="alert alert-info my-3">{approvalsMsg}</div>}
+
+          {loadingApprovals ? (
+            <div className="py-10 text-center">
+              <span className="loading loading-dots loading-lg" />
+            </div>
+          ) : approvalsFiltered.length === 0 ? (
+            <div className="py-6 text-base-content/70 text-sm">
+              No {approvalsTab} registrations.
+            </div>
+          ) : (
+            <>
+              {/* Mobile-friendly stacked cards */}
+              <div className="md:hidden space-y-3 mt-3">
+                {approvalsFiltered.map((row) => {
+                  const p = row.pharmacy || {};
+                  const u = row.owner || {};
+                  const submitted = row.createdAt
+                    ? new Date(row.createdAt).toISOString().slice(0, 10)
+                    : "—";
+                  const address = p?.address
+                    ? [p.address.street, p.address.upazila, p.address.district, p.address.division]
+                        .filter(Boolean)
+                        .join(", ")
+                    : "—";
+
+                  return (
+                    <div
+                      key={row._id}
+                      className="border rounded-xl p-3 bg-base-50/50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-base break-words">
+                            {p.pharmacyName || "—"}
+                          </div>
+                          <div className="text-[11px] text-base-content/60">
+                            {p.pharmacyType || "—"}
+                          </div>
+                        </div>
+                        <div>
+                          {approvalsTab === "pending" ? (
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="btn btn-success btn-xs"
+                                onClick={() => handleApprove(row._id)}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className="btn btn-error btn-xs"
+                                onClick={() => handleReject(row._id)}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : approvalsTab === "rejected" ? (
+                            <span className="badge badge-error" title={row.reason || ""}>
+                              Rejected
+                            </span>
+                          ) : (
+                            <span className="badge badge-success">Approved</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                        <div className="flex gap-2">
+                          <span className="shrink-0 text-base-content/60">Owner:</span>
+                          <span className="break-words">
+                            <span className="font-medium">{u.name || "—"}</span>
+                            {u.email ? (
+                              <>
+                                {" • "}
+                                <span className="break-all">{u.email}</span>
+                              </>
+                            ) : null}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="shrink-0 text-base-content/60">License:</span>
+                          <span className="break-all">{p.licenseNo || "—"}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="shrink-0 text-base-content/60">Contact:</span>
+                          <span className="break-all">
+                            {p.phone || u.phone || "—"}
+                            {p.website ? (
+                              <>
+                                {" • "}
+                                <a className="link break-all" href={p.website} target="_blank" rel="noreferrer">
+                                  website
+                                </a>
+                              </>
+                            ) : null}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="shrink-0 text-base-content/60">Address:</span>
+                          <span className="break-words">{address}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="shrink-0 text-base-content/60">Submitted:</span>
+                          <span>{submitted}</span>
+                        </div>
+                        {approvalsTab === "rejected" && row.reason ? (
+                          <div className="flex gap-2">
+                            <span className="shrink-0 text-base-content/60">Reason:</span>
+                            <span className="break-words">{row.reason}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Desktop/tablet table */}
+              <div className="hidden md:block overflow-x-auto mt-3">
+                <table className="table table-zebra table-pin-rows table-fixed min-w-[900px]">
+                  <thead>
+                    <tr>
+                      <th className="w-52">Pharmacy</th>
+                      <th className="w-52">Owner</th>
+                      <th className="w-32">License</th>
+                      <th className="w-40">Contact</th>
+                      <th className="w-[28rem]">Address</th>
+                      <th className="w-28">Submitted</th>
+                      <th className="w-40 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {approvalsFiltered.map((row) => {
+                      const p = row.pharmacy || {};
+                      const u = row.owner || {};
+                      const submitted = row.createdAt
+                        ? new Date(row.createdAt).toISOString().slice(0, 10)
+                        : "—";
+                      const address = p?.address
+                        ? [p.address.street, p.address.upazila, p.address.district, p.address.division]
+                            .filter(Boolean)
+                            .join(", ")
+                        : "—";
+
+                      return (
+                        <tr key={row._id}>
+                          <td className="align-top">
+                            <div className="font-medium truncate" title={p.pharmacyName || "—"}>
+                              {p.pharmacyName || "—"}
+                            </div>
+                            <div className="text-xs text-base-content/60 truncate" title={p.pharmacyType || "—"}>
+                              {p.pharmacyType || "—"}
+                            </div>
+                          </td>
+                          <td className="align-top">
+                            <div className="font-medium truncate" title={u.name || "—"}>
+                              {u.name || "—"}
+                            </div>
+                            <div className="text-xs text-base-content/60 break-all">
+                              {u.email || "—"}
+                            </div>
+                          </td>
+                          <td className="align-top">
+                            <span className="break-all">{p.licenseNo || "—"}</span>
+                          </td>
+                          <td className="align-top text-sm">
+                            <div className="break-all">{p.phone || u.phone || "—"}</div>
+                            {p.website ? (
+                              <div className="text-xs">
+                                <a className="link break-all" href={p.website} target="_blank" rel="noreferrer">
+                                  website
+                                </a>
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="align-top text-xs">
+                            <div className="whitespace-normal break-words">{address}</div>
+                          </td>
+                          <td className="align-top text-xs">{submitted}</td>
+                          <td className="align-top">
+                            <div className="flex items-center justify-end gap-2">
+                              {approvalsTab === "pending" ? (
+                                <>
+                                  <button
+                                    className="btn btn-success btn-xs"
+                                    onClick={() => handleApprove(row._id)}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    className="btn btn-error btn-xs"
+                                    onClick={() => handleReject(row._id)}
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              ) : approvalsTab === "rejected" ? (
+                                <span className="badge badge-error" title={row.reason || ""}>
+                                  Rejected
+                                </span>
+                              ) : (
+                                <span className="badge badge-success">Approved</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* Controls (Medicines) */}
         <section className="card bg-white shadow-md rounded-xl p-4 md:p-5 mb-6">
           <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
             <div className="flex-1">
@@ -388,7 +780,10 @@ export default function AdminDashboard() {
                   {lowStockMeds.map((m) => {
                     const stock = safeNum(m.totalUnits ?? m.stock ?? m.availableQty);
                     const minS = safeNum(m.minStock, 10);
-                    const percent = Math.max(0, Math.min(100, Math.round((stock / Math.max(1, minS)) * 100)));
+                    const percent = Math.max(
+                      0,
+                      Math.min(100, Math.round((stock / Math.max(1, minS)) * 100))
+                    );
                     return (
                       <li key={m._id || m.id} className="py-3 flex items-start gap-3">
                         <div className="mt-1"><PillTiny /></div>
@@ -496,7 +891,7 @@ function QuickAction({ to, label, icon }) {
   );
 }
 
-/* ======= Enhanced Medicine Card (richer details + better colors) ======= */
+/* ======= Enhanced Medicine Card ======= */
 function MedicineTile({ med }) {
   const id = med._id || med.id;
   const stock = safeNum(med.totalUnits ?? med.stock ?? med.availableQty);
@@ -550,7 +945,7 @@ function MedicineTile({ med }) {
         </div>
       </div>
 
-      {/* Name prominent */}
+      {/* Name */}
       <div className="text-base md:text-lg font-semibold text-base-content line-clamp-1">
         {med.name || brand || "Unnamed Medicine"}
       </div>
@@ -583,7 +978,6 @@ function MedicineTile({ med }) {
 
       {/* Actions */}
       <div className="mt-3 flex items-center gap-2">
-        {/* DETAILS route updated per your clarification */}
         <Link to={`/medicine-details/${id}`} className="btn btn-ghost btn-xs">
           Details
         </Link>
@@ -684,14 +1078,6 @@ function UsersIcon() {
     </svg>
   );
 }
-function ActiveIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-      <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
 function PillIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -747,6 +1133,22 @@ function CalendarTiny() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
       <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
       <path d="M8 2v4M16 2v4M3 10h18" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+function ClipboardCheckIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+      <path d="M9 3h6a2 2 0 012 2v1h1a2 2 0 012 2v11a2 2 0 01-2 2H7a2 2 0 01-2-2V8a2 2 0 012-2h1V5a2 2 0 012-2z" stroke="currentColor" strokeWidth="2" />
+      <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+function RefreshIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M21 12a9 9 0 10-3.5 7.1" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M21 3v6h-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
     </svg>
   );
 }

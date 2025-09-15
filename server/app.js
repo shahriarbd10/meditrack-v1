@@ -22,6 +22,11 @@ const pharmacyInventoryRoutes = require("./routes/pharmacyInventory");
 const pharmacyRoutes = require("./routes/pharmacies");
 
 /* =======================
+  Approval
+======================= */
+const approvalsRoutes = require("./routes/approvals");
+
+/* =======================
    Models for inline CRUD
 ======================= */
 const Category    = require("./models/Category");
@@ -70,6 +75,8 @@ app.use("/api/invoices", invoiceRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/pharmacy-inventory", pharmacyInventoryRoutes);
 app.use("/api/pharmacies", pharmacyRoutes);
+app.use("/api/approvals", approvalsRoutes);
+
 /* =======================
    Categories (INLINE CRUD)
    Base: /api/categories

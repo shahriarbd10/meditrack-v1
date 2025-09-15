@@ -66,6 +66,9 @@ import Reports from "./pages/reports/Reports";
 //PharmacyInventory
 import PharmacyInventoryDetails from "./pages/PharmacyInventoryDetails";
 
+//Approval
+import ApprovalGate from "./pages/pharmacy/components/ApprovalGate";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 
 function App() {
@@ -345,6 +348,23 @@ function App() {
             </AdminProtectedRoute>
           }
         />
+
+
+        {/* ===== Approval ===== */}
+
+        <Route
+          path="/dashboard/pharmacy"
+          element={
+            <ProtectedRoute>
+              <ApprovalGate>
+                <PharmacyDashboard />
+              </ApprovalGate>
+            </ProtectedRoute>
+          }
+        />
+
+
+        
       </Routes>
     </Router>
   );

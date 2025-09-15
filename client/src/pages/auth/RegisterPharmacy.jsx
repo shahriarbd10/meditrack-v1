@@ -1,8 +1,8 @@
 // src/pages/auth/RegisterPharmacy.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import axios from "axios";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 const API = "http://localhost:5000/api/auth/register";
 
@@ -38,6 +38,9 @@ export default function RegisterPharmacy() {
   const [logo, setLogo] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState("");
+
+  // Floating centered success dialog
+  const [showToast, setShowToast] = useState(false);
 
   const canSubmit = useMemo(() => {
     const required = [
@@ -88,20 +91,30 @@ export default function RegisterPharmacy() {
       });
       if (logo) fd.append("logo", logo);
 
-      const res = await axios.post(API, fd, {
+      await axios.post(API, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setMsg("Registration successful!");
-      // Optional: store minimal session or just navigate to login
-      setTimeout(() => navigate("/login"), 800);
+      // Keep inline message for non-modal contexts; show centered toast dialog
+      setMsg("Registration submitted. Your pharmacy is pending admin approval.");
+      setShowToast(true);
     } catch (err) {
       console.error(err);
       setMsg(err?.response?.data?.msg || "Registration failed");
+      setShowToast(false);
     } finally {
       setSubmitting(false);
     }
   };
+
+  // Esc to close dialog
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") setShowToast(false);
+    };
+    if (showToast) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showToast]);
 
   return (
     <div className="min-h-screen bg-base-100 flex flex-col">
@@ -134,9 +147,9 @@ export default function RegisterPharmacy() {
       {/* Form */}
       <main className="flex-1">
         <form onSubmit={handleSubmit} className="max-w-[1100px] mx-auto px-4 md:px-6 pb-12">
-          {/* Message */}
-          {msg && (
-            <div className={`alert ${msg.includes("success") ? "alert-success" : "alert-info"} mb-4`}>
+          {/* Message (kept). Hidden while floating dialog is visible to avoid duplication */}
+          {msg && !showToast && (
+            <div className={`alert ${msg.toLowerCase().includes("failed") ? "alert-error" : "alert-info"} mb-4`}>
               {msg}
             </div>
           )}
@@ -237,6 +250,65 @@ export default function RegisterPharmacy() {
           <p>© {new Date().getFullYear()} MediTrack. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* Centered floating success dialog (responsive) */}
+      <AnimatePresence>
+        {showToast && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop"
+              className="fixed inset-0 z-50 bg-black/40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            {/* Dialog */}
+            <motion.div
+              key="dialog"
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              initial={{ opacity: 0, scale: 0.98, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: 8 }}
+              transition={{ type: "spring", stiffness: 240, damping: 20 }}
+              aria-modal="true"
+              role="dialog"
+            >
+              <div className="w-full max-w-md sm:max-w-lg bg-white border border-base-200 rounded-2xl shadow-2xl">
+                <div className="p-5 sm:p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-full bg-success/10 text-success shrink-0">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+                        <path d="M8 12l3 3 5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-base sm:text-lg">Request submitted</div>
+                      <div className="text-sm sm:text-base text-base-content/70 mt-1">
+                        Your pharmacy registration is pending admin approval.
+                        <br />
+                        <span className="italic">Note: this may take up to 24 hours.</span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Link to="/" className="btn btn-sm sm:btn-md btn-outline">Go Home</Link>
+                        <Link to="/login" className="btn btn-sm sm:btn-md btn-primary">Login</Link>
+                      </div>
+                    </div>
+                    <button
+                      aria-label="Close"
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => setShowToast(false)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
