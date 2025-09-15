@@ -70,6 +70,10 @@ import PharmacyInventoryDetails from "./pages/PharmacyInventoryDetails";
 import ApprovalGate from "./pages/pharmacy/components/ApprovalGate";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+//AdminApprovaltoPharmacy
+// Admin: Pharmacy Registrations
+import PharmacyApprovals from "./pages/admin/PharmacyApprovals";
+
 
 function App() {
   return (
@@ -164,6 +168,33 @@ function App() {
         {/* ===== Pharmacy & Staff ===== */}
         <Route path="/dashboard/pharmacy" element={<PharmacyDashboard />} />
         <Route path="/dashboard/staff" element={<StaffDashboard />} />
+
+                {/* ===== Admin: Pharmacy Approvals (protected) ===== */}
+        <Route
+          path="/dashboard/admin/approvals"
+          element={
+            <AdminProtectedRoute>
+              <PharmacyApprovals defaultTab="pending" />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/approvals/approved"
+          element={
+            <AdminProtectedRoute>
+              <PharmacyApprovals defaultTab="approved" />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/admin/approvals/rejected"
+          element={
+            <AdminProtectedRoute>
+              <PharmacyApprovals defaultTab="rejected" />
+            </AdminProtectedRoute>
+          }
+        />
+
 
         {/* ===== Medicine CRUD (protected) ===== */}
         <Route

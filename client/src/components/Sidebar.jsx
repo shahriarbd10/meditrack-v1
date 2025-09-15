@@ -34,6 +34,7 @@ export default function Sidebar() {
   const [openSupplier, setOpenSupplier] = useState(false);
   const [openPurchase, setOpenPurchase] = useState(false);
   const [openInvoice, setOpenInvoice] = useState(false);
+  const [openApprovals, setOpenApprovals] = useState(false); // NEW: Pharmacy Registrations
 
   const handleLogout = () => {
     try {
@@ -79,6 +80,13 @@ export default function Sidebar() {
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
         fill="currentColor" className="w-4 mr-3">
         <path d="M6 2h12l2 2v16l-2-1-2 1-2-1-2 1-2-1-2 1-2-1V4l2-2zm2 5h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/>
+      </svg>
+    ),
+    clipboard: (
+      // NEW: Pharmacy Registrations icon
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+        fill="currentColor" className="w-4 mr-3">
+        <path d="M9 2h6a2 2 0 012 2v1h1a2 2 0 012 2v13a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h1V4a2 2 0 012-2zm0 4V4h6v2H9z"/>
       </svg>
     ),
     chevron: (open) => (
@@ -128,6 +136,13 @@ export default function Sidebar() {
     list: "/dashboard/admin/invoices/list",
   };
 
+  // NEW: approvals paths (match App.jsx routes you added)
+  const APPROVALS = {
+    pending: "/dashboard/admin/approvals",
+    approved: "/dashboard/admin/approvals/approved",
+    rejected: "/dashboard/admin/approvals/rejected",
+  };
+
   return (
     <aside className="hidden w-64 bg-gray-800 md:flex md:flex-col min-h-screen">
       {/* Header */}
@@ -142,6 +157,45 @@ export default function Sidebar() {
           {/* Dashboard */}
           <li className="px-2">
             <SidebarLink to="/dashboard/admin" icon={Icon.dashboard} label="Dashboard" />
+          </li>
+
+          {/* NEW: Pharmacy Registrations */}
+          <li className="px-2">
+            <button
+              onClick={() => setOpenApprovals((v) => !v)}
+              className={`w-full px-4 py-3 flex items-center rounded-sm text-white ${
+                openApprovals ? "bg-lime-600" : "bg-gray-700 hover:bg-gray-600"
+              }`}
+            >
+              {Icon.clipboard}
+              <span>Pharmacy Registrations</span>
+              {Icon.chevron(openApprovals)}
+            </button>
+            {openApprovals && (
+              <ul className="mt-1 ml-4 border-l border-gray-700">
+                <li>
+                  <SidebarLink
+                    to={APPROVALS.pending}
+                    label="Pending"
+                    className="pl-6 py-2"
+                  />
+                </li>
+                <li>
+                  <SidebarLink
+                    to={APPROVALS.approved}
+                    label="Approved"
+                    className="pl-6 py-2"
+                  />
+                </li>
+                <li>
+                  <SidebarLink
+                    to={APPROVALS.rejected}
+                    label="Rejected"
+                    className="pl-6 py-2"
+                  />
+                </li>
+              </ul>
+            )}
           </li>
 
           {/* Customers */}

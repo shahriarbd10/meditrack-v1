@@ -42,6 +42,27 @@ const formatBDT = (n = 0) =>
     maximumFractionDigits: 0,
   }).format(Number(n) || 0);
 
+/** Make a readable address from various possible shapes */
+function toAddressString(addr = {}) {
+  // Common shapes we’ve seen in your app
+  const parts = [
+    addr.line1,
+    addr.line2,
+    addr.street,
+    addr.area,
+    addr.upazila,
+    addr.city,
+    addr.district,
+    addr.state,
+    addr.division,
+    addr.postcode || addr.zip,
+    addr.country,
+  ]
+    .map((x) => (x || "").trim())
+    .filter(Boolean);
+  return parts.join(", ");
+}
+
 /* =======================
    Main
 ======================= */
@@ -53,7 +74,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalPharmacies: 0,
     totalStaff: 0,
-    activeUsers: 0, // still fetched; not displayed
+    activeUsers: 0,
   });
   const [medicines, setMedicines] = useState([]);
 
@@ -77,6 +98,7 @@ export default function AdminDashboard() {
   const [loadingApprovals, setLoadingApprovals] = useState(true);
   const [approvalsMsg, setApprovalsMsg] = useState("");
   const [approvalsSearch, setApprovalsSearch] = useState("");
+  const [hoveredRow, setHoveredRow] = useState(null); // for smooth row expansion
 
   /* ---- Effects ---- */
   useEffect(() => {
@@ -126,9 +148,12 @@ export default function AdminDashboard() {
           axios.get(API.approvalsList("rejected"), { headers }),
         ]);
 
-        setPendingRegs(Array.isArray(p?.data?.data) ? p.data.data : p?.data || []);
-        setApprovedRegs(Array.isArray(a?.data?.data) ? a.data.data : a?.data || []);
-        setRejectedRegs(Array.isArray(r?.data?.data) ? r.data.data : r?.data || []);
+        // The /api/approvals returns flat fields (pharmacyName, licenseNo, phone, address, etc.)
+        const take = (res) => (Array.isArray(res?.data?.data) ? res.data.data : res?.data || []);
+
+        setPendingRegs(take(p));
+        setApprovedRegs(take(a));
+        setRejectedRegs(take(r));
         setApprovalsMsg("");
       } catch (e) {
         console.error("approvals load", e);
@@ -237,38 +262,29 @@ export default function AdminDashboard() {
   }, [medicines]);
   const expiringSoonCount = expiringSoonList.length;
 
-  /* ---- Derived (approvals filtered by search) ---- */
-  const approvalsRows = approvalsTab === "approved"
-    ? approvedRegs
-    : approvalsTab === "rejected"
-    ? rejectedRegs
-    : pendingRegs;
+  /* ---- Approvals (tab & search) ---- */
+  const approvalsRows =
+    approvalsTab === "approved" ? approvedRegs : approvalsTab === "rejected" ? rejectedRegs : pendingRegs;
 
   const approvalsFiltered = useMemo(() => {
     if (!approvalsSearch.trim()) return approvalsRows;
     const q = norm(approvalsSearch);
     return approvalsRows.filter((row) => {
-      const p = row.pharmacy || {};
-      const u = row.owner || row.user || {};
-      const address = p?.address
-        ? [p.address.street, p.address.upazila, p.address.district, p.address.division]
-            .filter(Boolean)
-            .join(", ")
-        : "";
+      const owner = row.owner || {};
+      const addressStr = toAddressString(row.address || {});
       return (
-        norm(p.pharmacyName || "").includes(q) ||
-        norm(p.pharmacyType || "").includes(q) ||
-        norm(p.licenseNo || "").includes(q) ||
-        norm(p.phone || "").includes(q) ||
-        norm(p.website || "").includes(q) ||
-        norm(address).includes(q) ||
-        norm(u.name || "").includes(q) ||
-        norm(u.email || "").includes(q) ||
-        norm(u.phone || "").includes(q)
+        norm(row.pharmacyName || "").includes(q) ||
+        norm(row.pharmacyType || "").includes(q) ||
+        norm(row.licenseNo || "").includes(q) ||
+        norm(row.phone || "").includes(q) ||
+        norm(row.website || "").includes(q) ||
+        norm(owner.name || "").includes(q) ||
+        norm(owner.email || "").includes(q) ||
+        norm(owner.phone || "").includes(q) ||
+        norm(addressStr).includes(q)
       );
     });
   }, [approvalsRows, approvalsSearch]);
-
 
   /* ---- Actions ---- */
   const handleLogout = () => {
@@ -288,9 +304,10 @@ export default function AdminDashboard() {
         axios.get(API.approvalsList("approved"), { headers }),
         axios.get(API.approvalsList("rejected"), { headers }),
       ]);
-      setPendingRegs(Array.isArray(p?.data?.data) ? p.data.data : p?.data || []);
-      setApprovedRegs(Array.isArray(a?.data?.data) ? a.data.data : a?.data || []);
-      setRejectedRegs(Array.isArray(r?.data?.data) ? r.data.data : r?.data || []);
+      const take = (res) => (Array.isArray(res?.data?.data) ? res.data.data : res?.data || []);
+      setPendingRegs(take(p));
+      setApprovedRegs(take(a));
+      setRejectedRegs(take(r));
       setApprovalsMsg("");
     } catch (e) {
       console.error(e);
@@ -375,7 +392,6 @@ export default function AdminDashboard() {
               loading={loadingStats}
               icon={<UsersIcon />}
             />
-            {/* Replaced Active Users with Expiry Alerts */}
             <StatCard
               title="Expiry Alerts (30d)"
               value={expiringSoonCount}
@@ -476,17 +492,11 @@ export default function AdminDashboard() {
               {/* Mobile-friendly stacked cards */}
               <div className="md:hidden space-y-3 mt-3">
                 {approvalsFiltered.map((row) => {
-                  const p = row.pharmacy || {};
-                  const u = row.owner || {};
+                  const owner = row.owner || {};
                   const submitted = row.createdAt
                     ? new Date(row.createdAt).toISOString().slice(0, 10)
                     : "—";
-                  const address = p?.address
-                    ? [p.address.street, p.address.upazila, p.address.district, p.address.division]
-                        .filter(Boolean)
-                        .join(", ")
-                    : "—";
-
+                  const addressStr = toAddressString(row.address || {});
                   return (
                     <div
                       key={row._id}
@@ -495,10 +505,10 @@ export default function AdminDashboard() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="font-semibold text-base break-words">
-                            {p.pharmacyName || "—"}
+                            {row.pharmacyName || "—"}
                           </div>
                           <div className="text-[11px] text-base-content/60">
-                            {p.pharmacyType || "—"}
+                            {row.pharmacyType || "—"}
                           </div>
                         </div>
                         <div>
@@ -518,7 +528,7 @@ export default function AdminDashboard() {
                               </button>
                             </div>
                           ) : approvalsTab === "rejected" ? (
-                            <span className="badge badge-error" title={row.reason || ""}>
+                            <span className="badge badge-error" title={row.rejectionReason || ""}>
                               Rejected
                             </span>
                           ) : (
@@ -531,27 +541,27 @@ export default function AdminDashboard() {
                         <div className="flex gap-2">
                           <span className="shrink-0 text-base-content/60">Owner:</span>
                           <span className="break-words">
-                            <span className="font-medium">{u.name || "—"}</span>
-                            {u.email ? (
+                            <span className="font-medium">{owner.name || "—"}</span>
+                            {owner.email ? (
                               <>
                                 {" • "}
-                                <span className="break-all">{u.email}</span>
+                                <span className="break-all">{owner.email}</span>
                               </>
                             ) : null}
                           </span>
                         </div>
                         <div className="flex gap-2">
                           <span className="shrink-0 text-base-content/60">License:</span>
-                          <span className="break-all">{p.licenseNo || "—"}</span>
+                          <span className="break-all">{row.licenseNo || "—"}</span>
                         </div>
                         <div className="flex gap-2">
                           <span className="shrink-0 text-base-content/60">Contact:</span>
                           <span className="break-all">
-                            {p.phone || u.phone || "—"}
-                            {p.website ? (
+                            {row.phone || owner.phone || "—"}
+                            {row.website ? (
                               <>
                                 {" • "}
-                                <a className="link break-all" href={p.website} target="_blank" rel="noreferrer">
+                                <a className="link break-all" href={row.website} target="_blank" rel="noreferrer">
                                   website
                                 </a>
                               </>
@@ -560,16 +570,16 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex gap-2">
                           <span className="shrink-0 text-base-content/60">Address:</span>
-                          <span className="break-words">{address}</span>
+                          <span className="break-words">{addressStr || "—"}</span>
                         </div>
                         <div className="flex gap-2">
                           <span className="shrink-0 text-base-content/60">Submitted:</span>
                           <span>{submitted}</span>
                         </div>
-                        {approvalsTab === "rejected" && row.reason ? (
+                        {approvalsTab === "rejected" && row.rejectionReason ? (
                           <div className="flex gap-2">
                             <span className="shrink-0 text-base-content/60">Reason:</span>
-                            <span className="break-words">{row.reason}</span>
+                            <span className="break-words">{row.rejectionReason}</span>
                           </div>
                         ) : null}
                       </div>
@@ -578,15 +588,15 @@ export default function AdminDashboard() {
                 })}
               </div>
 
-              {/* Desktop/tablet table */}
+              {/* Desktop/tablet table with hover expansion */}
               <div className="hidden md:block overflow-x-auto mt-3">
-                <table className="table table-zebra table-pin-rows table-fixed min-w-[900px]">
+                <table className="table table-zebra table-pin-rows table-fixed min-w-[1000px]">
                   <thead>
                     <tr>
-                      <th className="w-52">Pharmacy</th>
-                      <th className="w-52">Owner</th>
-                      <th className="w-32">License</th>
-                      <th className="w-40">Contact</th>
+                      <th className="w-56">Pharmacy</th>
+                      <th className="w-56">Owner</th>
+                      <th className="w-36">License</th>
+                      <th className="w-44">Contact</th>
                       <th className="w-[28rem]">Address</th>
                       <th className="w-28">Submitted</th>
                       <th className="w-40 text-right">Actions</th>
@@ -594,79 +604,124 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {approvalsFiltered.map((row) => {
-                      const p = row.pharmacy || {};
-                      const u = row.owner || {};
+                      const owner = row.owner || {};
                       const submitted = row.createdAt
                         ? new Date(row.createdAt).toISOString().slice(0, 10)
                         : "—";
-                      const address = p?.address
-                        ? [p.address.street, p.address.upazila, p.address.district, p.address.division]
-                            .filter(Boolean)
-                            .join(", ")
-                        : "—";
+                      const addressStr = toAddressString(row.address || {});
 
                       return (
-                        <tr key={row._id}>
-                          <td className="align-top">
-                            <div className="font-medium truncate" title={p.pharmacyName || "—"}>
-                              {p.pharmacyName || "—"}
-                            </div>
-                            <div className="text-xs text-base-content/60 truncate" title={p.pharmacyType || "—"}>
-                              {p.pharmacyType || "—"}
-                            </div>
-                          </td>
-                          <td className="align-top">
-                            <div className="font-medium truncate" title={u.name || "—"}>
-                              {u.name || "—"}
-                            </div>
-                            <div className="text-xs text-base-content/60 break-all">
-                              {u.email || "—"}
-                            </div>
-                          </td>
-                          <td className="align-top">
-                            <span className="break-all">{p.licenseNo || "—"}</span>
-                          </td>
-                          <td className="align-top text-sm">
-                            <div className="break-all">{p.phone || u.phone || "—"}</div>
-                            {p.website ? (
-                              <div className="text-xs">
-                                <a className="link break-all" href={p.website} target="_blank" rel="noreferrer">
-                                  website
-                                </a>
+                        <React.Fragment key={row._id}>
+                          <tr
+                            className="group"
+                            onMouseEnter={() => setHoveredRow(row._id)}
+                            onMouseLeave={() => setHoveredRow((id) => (id === row._id ? null : id))}
+                          >
+                            <td className="align-top">
+                              <div className="font-medium truncate" title={row.pharmacyName || "—"}>
+                                {row.pharmacyName || "—"}
                               </div>
-                            ) : null}
-                          </td>
-                          <td className="align-top text-xs">
-                            <div className="whitespace-normal break-words">{address}</div>
-                          </td>
-                          <td className="align-top text-xs">{submitted}</td>
-                          <td className="align-top">
-                            <div className="flex items-center justify-end gap-2">
-                              {approvalsTab === "pending" ? (
-                                <>
-                                  <button
-                                    className="btn btn-success btn-xs"
-                                    onClick={() => handleApprove(row._id)}
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    className="btn btn-error btn-xs"
-                                    onClick={() => handleReject(row._id)}
-                                  >
-                                    Reject
-                                  </button>
-                                </>
-                              ) : approvalsTab === "rejected" ? (
-                                <span className="badge badge-error" title={row.reason || ""}>
-                                  Rejected
-                                </span>
-                              ) : (
-                                <span className="badge badge-success">Approved</span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+                              <div className="text-xs text-base-content/60 truncate" title={row.pharmacyType || "—"}>
+                                {row.pharmacyType || "—"}
+                              </div>
+                            </td>
+                            <td className="align-top">
+                              <div className="font-medium truncate" title={owner.name || "—"}>
+                                {owner.name || "—"}
+                              </div>
+                              <div className="text-xs text-base-content/60 break-all">
+                                {owner.email || "—"}
+                              </div>
+                            </td>
+                            <td className="align-top">
+                              <span className="break-all">{row.licenseNo || "—"}</span>
+                            </td>
+                            <td className="align-top text-sm">
+                              <div className="break-all">{row.phone || owner.phone || "—"}</div>
+                              {row.website ? (
+                                <div className="text-xs">
+                                  <a className="link break-all" href={row.website} target="_blank" rel="noreferrer">
+                                    website
+                                  </a>
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="align-top text-xs">
+                              <div className="whitespace-normal break-words">{addressStr || "—"}</div>
+                            </td>
+                            <td className="align-top text-xs">{submitted}</td>
+                            <td className="align-top">
+                              <div className="flex items-center justify-end gap-2">
+                                {approvalsTab === "pending" ? (
+                                  <>
+                                    <button
+                                      className="btn btn-success btn-xs"
+                                      onClick={() => handleApprove(row._id)}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      className="btn btn-error btn-xs"
+                                      onClick={() => handleReject(row._id)}
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                ) : approvalsTab === "rejected" ? (
+                                  <span className="badge badge-error" title={row.rejectionReason || ""}>
+                                    Rejected
+                                  </span>
+                                ) : (
+                                  <span className="badge badge-success">Approved</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Smooth expansion row */}
+                          <tr>
+                            <td colSpan={7} className="!p-0">
+                              <div
+                                className={`transition-all duration-200 ease-out overflow-hidden border-t ${
+                                  hoveredRow === row._id ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
+                                }`}
+                              >
+                                <div className="px-4 py-3 bg-base-100 text-xs grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  <div>
+                                    <div className="text-base-content/60">Owner</div>
+                                    <div className="mt-1 break-words">
+                                      {owner.name || "—"}
+                                      {owner.email ? ` • ${owner.email}` : ""}
+                                      {owner.phone ? ` • ${owner.phone}` : ""}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-base-content/60">Website</div>
+                                    <div className="mt-1 break-all">
+                                      {row.website ? (
+                                        <a className="link" href={row.website} target="_blank" rel="noreferrer">
+                                          {row.website}
+                                        </a>
+                                      ) : (
+                                        "—"
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-base-content/60">Full Address</div>
+                                    <div className="mt-1 break-words">{addressStr || "—"}</div>
+                                  </div>
+                                  {approvalsTab === "rejected" && row.rejectionReason ? (
+                                    <div className="md:col-span-3">
+                                      <div className="text-base-content/60">Rejection Reason</div>
+                                      <div className="mt-1 break-words">{row.rejectionReason}</div>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
