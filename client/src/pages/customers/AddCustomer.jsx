@@ -138,7 +138,7 @@ export default function AddCustomer() {
 
     setBusy(true);
     try {
-      await axios.post("http://localhost:5000/api/customers", {
+      await axios.post(`${import.meta.env.VITE_API_URL}/customers`, {
         ...formData,
         name: formData.name.trim(),
         mobile: formData.mobile.trim(),

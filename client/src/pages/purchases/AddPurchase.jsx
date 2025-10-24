@@ -8,11 +8,12 @@ import Sidebar from "../../components/Sidebar";
    API Endpoints
 ======================= */
 const API = {
-  suppliers: "http://localhost:5000/api/suppliers",
-  leaf: "http://localhost:5000/api/leaf-settings",
-  medicines: "http://localhost:5000/api/medicines",
-  purchases: "http://localhost:5000/api/purchases/add",
+  suppliers: `${import.meta.env.VITE_API_URL}/suppliers`,
+  leaf: `${import.meta.env.VITE_API_URL}/leaf-settings`,
+  medicines: `${import.meta.env.VITE_API_URL}/medicines`,
+  purchases: `${import.meta.env.VITE_API_URL}/purchases/add`,
 };
+
 
 /* =======================
    Helpers

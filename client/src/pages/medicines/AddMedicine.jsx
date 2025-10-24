@@ -5,12 +5,12 @@ import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 
 const API = {
-  add: "http://localhost:5000/api/medicines", // multipart endpoint
-  categories: "http://localhost:5000/api/categories",
-  types: "http://localhost:5000/api/types",
-  units: "http://localhost:5000/api/units",
-  suppliers: "http://localhost:5000/api/suppliers",
-  leaf: "http://localhost:5000/api/leaf-settings",
+  add: `${import.meta.env.VITE_API_URL}/medicines`, // multipart endpoint
+  categories: `${import.meta.env.VITE_API_URL}/categories`,
+  types: `${import.meta.env.VITE_API_URL}/types`,
+  units: `${import.meta.env.VITE_API_URL}/units`,
+  suppliers: `${import.meta.env.VITE_API_URL}/suppliers`,
+  leaf: `${import.meta.env.VITE_API_URL}/leaf-settings`,
 };
 
 // helper to multiply all numbers found in a string like "3x10" -> 30

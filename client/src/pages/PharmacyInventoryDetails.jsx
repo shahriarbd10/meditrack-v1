@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useParams, Link, useNavigate } from "react-router-dom";
 
-const API = "http://localhost:5000/api/pharmacy-inventory";
+const API = `${import.meta.env.VITE_API_URL}/pharmacy-inventory`;
 
 export default function PharmacyInventoryDetails() {
   const { id } = useParams();

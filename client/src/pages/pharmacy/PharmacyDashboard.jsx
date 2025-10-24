@@ -11,14 +11,15 @@ import ProfileTab from "./components/ProfileTab";
 import AddFromDBModal from "./components/AddFromDBModal";
 
 const API = {
-  staff: "http://localhost:5000/api/staff",
-  medicines: "http://localhost:5000/api/medicines",
-  inventory: "http://localhost:5000/api/pharmacy-inventory",
+  staff: `${import.meta.env.VITE_API_URL}/staff`,
+  medicines: `${import.meta.env.VITE_API_URL}/medicines`,
+  inventory: `${import.meta.env.VITE_API_URL}/pharmacy-inventory`,
   pharmacyByOwner: (ownerId) =>
-    `http://localhost:5000/api/pharmacies/by-owner/${ownerId}`,
-  pharmacyUpdate: (id) => `http://localhost:5000/api/pharmacies/${id}`,
+    `${import.meta.env.VITE_API_URL}/pharmacies/by-owner/${ownerId}`,
+  pharmacyUpdate: (id) =>
+    `${import.meta.env.VITE_API_URL}/pharmacies/${id}`,
   approvalStatus: (ownerId) =>
-    `http://localhost:5000/api/approvals/status/${ownerId}`,
+    `${import.meta.env.VITE_API_URL}/approvals/status/${ownerId}`,
 };
 
 const EXPIRY_WINDOW_DAYS = 30;

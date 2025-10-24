@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useParams, Link } from "react-router-dom";
 
-const API = "http://localhost:5000/api/medicines";
+const API = `${import.meta.env.VITE_API_URL}/medicines`;
 
 export default function MedicineInfo() {
   const { id } = useParams();

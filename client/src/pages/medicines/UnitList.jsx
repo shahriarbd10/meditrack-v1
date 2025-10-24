@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API = "http://localhost:5000/api/units";
+const API = `${import.meta.env.VITE_API_URL}/units`;
 
 const StatusBadge = ({ value }) => (
   <span className={`badge ${value === "active" ? "badge-success" : "badge-ghost"}`}>

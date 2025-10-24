@@ -11,7 +11,7 @@ export default function EditMedicine() {
   useEffect(() => {
     async function fetchMedicine() {
       try {
-        const res = await axios.get(`http://localhost:5000/api/medicines/${id}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/medicines/${id}`);
         setMedicine(res.data);
       } catch (err) {
         setError("Failed to load medicine for editing");
@@ -27,7 +27,7 @@ export default function EditMedicine() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:5000/api/medicines/edit/${id}`, medicine);
+      await axios.put(`${import.meta.env.VITE_API_URL}/medicines/edit/${id}`, medicine);
       navigate("/dashboard/admin");
     } catch (err) {
       alert("Failed to update medicine");

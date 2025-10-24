@@ -30,7 +30,7 @@ export default function AddMedicine() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:5000/api/medicines/add", medicine);
+      await axios.post(`${import.meta.env.VITE_API_URL}/medicines/add`, medicine);
       navigate("/dashboard/admin/medicines/list"); // ✅ after adding, go to medicine list
     } catch (err) {
       console.error("Error adding medicine", err);

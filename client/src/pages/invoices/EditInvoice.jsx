@@ -8,9 +8,9 @@ import Sidebar from "../../components/Sidebar";
    API Endpoints
 ======================= */
 const API = {
-  customers: "http://localhost:5000/api/customers",
-  medicines: "http://localhost:5000/api/medicines",
-  invoices:  "http://localhost:5000/api/invoices",
+  customers: `${import.meta.env.VITE_API_URL}/customers`,
+  medicines: `${import.meta.env.VITE_API_URL}/medicines`,
+  invoices: `${import.meta.env.VITE_API_URL}/invoices`,
 };
 
 /* =======================

@@ -11,7 +11,7 @@ export default function MedicineInfo() {
   useEffect(() => {
     async function fetchMedicine() {
       try {
-        const res = await axios.get(`http://localhost:5000/api/medicines/${id}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/medicines/${id}`);
         setMedicine(res.data);
       } catch (err) {
         setError("Failed to load medicine details");

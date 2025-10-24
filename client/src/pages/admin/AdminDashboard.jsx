@@ -8,16 +8,16 @@ import Sidebar from "../../components/Sidebar";
    API Endpoints
 ======================= */
 const API = {
-  stats: "http://localhost:5000/api/admin/stats",
-  medicines: "http://localhost:5000/api/medicines",
+  stats: `${import.meta.env.VITE_API_URL}/admin/stats`,
+  medicines: `${import.meta.env.VITE_API_URL}/medicines`,
 
   // --- Approvals (admin) ---
   approvalsList: (status = "pending") =>
-    `http://localhost:5000/api/approvals?status=${encodeURIComponent(status)}`,
+    `${import.meta.env.VITE_API_URL}/approvals?status=${encodeURIComponent(status)}`,
   approve: (approvalId) =>
-    `http://localhost:5000/api/approvals/${approvalId}/approve`,
+    `${import.meta.env.VITE_API_URL}/approvals/${approvalId}/approve`,
   reject: (approvalId) =>
-    `http://localhost:5000/api/approvals/${approvalId}/reject`,
+    `${import.meta.env.VITE_API_URL}/approvals/${approvalId}/reject`,
 };
 
 /* =======================

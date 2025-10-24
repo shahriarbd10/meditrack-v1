@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API = "http://localhost:5000/api/invoices";
+const API = `${import.meta.env.VITE_API_URL}/invoices`;
 const toDate = (d) => new Date(d).toISOString().slice(0, 10);
 const fmt = (n) => (isNaN(n) ? "0.00" : Number(n).toFixed(2));
 

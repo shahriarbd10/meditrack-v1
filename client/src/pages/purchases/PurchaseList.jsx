@@ -3,7 +3,7 @@ import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 
-const API_BASE = "http://localhost:5000/api/purchases";
+const API_BASE = `${import.meta.env.VITE_API_URL}/purchases`;
 const toDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : "");
 
 // Safely pull a human name for the medicine from different possible shapes

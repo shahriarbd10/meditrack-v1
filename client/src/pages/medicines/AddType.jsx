@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API_ADD_TYPE = "http://localhost:5000/api/types";
+const API_ADD_TYPE = `${import.meta.env.VITE_API_URL}/types`;
 const ROUTES = {
   list: "/dashboard/admin/medicines/type/list",
 };

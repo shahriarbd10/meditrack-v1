@@ -50,7 +50,7 @@ export default function EditCustomer() {
     (async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`http://localhost:5000/api/customers/${id}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/customers/${id}`);
         const c = res.data?.customer || res.data; // support either shape
         if (!c) throw new Error("Customer not found");
 
@@ -98,7 +98,7 @@ export default function EditCustomer() {
 
     try {
       setSaving(true);
-      await axios.put(`http://localhost:5000/api/customers/${id}`, {
+      await axios.put(`${import.meta.env.VITE_API_URL}/customers/${id}`, {
         ...formData,
         previousBalance:
           formData.previousBalance === "" ? "" : Number(formData.previousBalance),
@@ -116,7 +116,7 @@ export default function EditCustomer() {
   const handleDelete = async () => {
     if (!window.confirm("Delete this customer? This cannot be undone.")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/customers/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL}/customers/${id}`);
       alert("Customer deleted");
       navigate(CUSTOMER_ROUTES.list);
     } catch (e) {

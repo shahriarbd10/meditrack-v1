@@ -41,7 +41,7 @@ export default function CustomerList() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/customers");
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/customers`);
         if (!res.ok) throw new Error("Failed to fetch customers");
         const data = await res.json();
         if (!cancelled) setCustomers(Array.isArray(data.customers) ? data.customers : []);
@@ -113,7 +113,7 @@ export default function CustomerList() {
   const confirmDelete = async (id) => {
     if (!window.confirm("Delete this customer? This cannot be undone.")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/customers/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL}/customers/${id}`);
       setCustomers((prev) => prev.filter((c) => c._id !== id));
     } catch (err) {
       console.error(err);

@@ -13,7 +13,7 @@ import {
 } from "recharts";
 
 const API = {
-  overview: "http://localhost:5000/api/reports/overview",
+  overview: `${import.meta.env.VITE_API_URL}/reports/overview`,
 };
 
 /** ---- Palette (future-proof, balanced, WCAG-friendly) ----

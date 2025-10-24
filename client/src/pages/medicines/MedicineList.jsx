@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API = "http://localhost:5000/api/medicines";
+const API = `${import.meta.env.VITE_API_URL}/medicines`;
 
 export default function MedicineList() {
   const [rows, setRows] = useState([]);

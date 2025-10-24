@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API = "http://localhost:5000/api/leaf-settings";
+const API = `${import.meta.env.VITE_API_URL}/leaf-settings`;
 
 function Modal({ open, onClose, onSubmit, editing }) {
   const [form, setForm] = useState({ leafType: "", totalNumber: "" });

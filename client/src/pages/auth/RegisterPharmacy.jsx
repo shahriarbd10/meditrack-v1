@@ -4,7 +4,7 @@ import axios from "axios";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API = "http://localhost:5000/api/auth/register";
+const API = `${import.meta.env.VITE_API_URL}/auth/register`;
 
 const DIVISIONS = [
   "Dhaka", "Chattogram", "Rajshahi", "Khulna", "Barishal", "Sylhet", "Rangpur", "Mymensingh",

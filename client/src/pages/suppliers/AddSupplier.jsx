@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API = "http://localhost:5000/api/suppliers";
+const API = `${import.meta.env.VITE_API_URL}/suppliers`;
 const ROUTES = { list: "/dashboard/admin/suppliers/list" };
 
 export default function AddSupplier() {

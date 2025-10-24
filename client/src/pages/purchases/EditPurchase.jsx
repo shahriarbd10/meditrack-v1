@@ -5,11 +5,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../../components/Sidebar";
 
 const API = {
-  suppliers: "http://localhost:5000/api/suppliers",
-  leaf: "http://localhost:5000/api/leaf-settings",
-  medicines: "http://localhost:5000/api/medicines",
-  purchasesBase: "http://localhost:5000/api/purchases",
+  suppliers: `${import.meta.env.VITE_API_URL}/suppliers`,
+  leaf: `${import.meta.env.VITE_API_URL}/leaf-settings`,
+  medicines: `${import.meta.env.VITE_API_URL}/medicines`,
+  purchasesBase: `${import.meta.env.VITE_API_URL}/purchases`,
 };
+
 
 const toNum = (v) => (isNaN(Number(v)) ? 0 : Number(v));
 const today = () => new Date().toISOString().slice(0, 10);

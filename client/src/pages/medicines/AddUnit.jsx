@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API_ADD_UNIT = "http://localhost:5000/api/units";
+const API_ADD_UNIT = `${import.meta.env.VITE_API_URL}/units`;
 const ROUTES = { list: "/dashboard/admin/medicines/unit/list" };
 
 export default function AddUnit() {

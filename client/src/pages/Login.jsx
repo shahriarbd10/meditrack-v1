@@ -19,7 +19,7 @@ export default function Login() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/login`, {
         email: form.email,
         password: form.password,
       });
@@ -40,7 +40,7 @@ export default function Login() {
       const email = decoded.email;
       const name = decoded.name;
 
-      const res = await axios.post("http://localhost:5000/api/auth/google-login", {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/google-login`, {
         email,
         name,
       });

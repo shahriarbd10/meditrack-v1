@@ -8,9 +8,11 @@ import Sidebar from "../../components/Sidebar";
 ======================= */
 const API = {
   approvalsList: (status = "pending") =>
-    `http://localhost:5000/api/approvals?status=${encodeURIComponent(status)}`,
-  approve: (id) => `http://localhost:5000/api/approvals/${id}/approve`,
-  reject: (id) => `http://localhost:5000/api/approvals/${id}/reject`,
+    `${import.meta.env.VITE_API_URL}/approvals?status=${encodeURIComponent(status)}`,
+  approve: (id) =>
+    `${import.meta.env.VITE_API_URL}/approvals/${id}/approve`,
+  reject: (id) =>
+    `${import.meta.env.VITE_API_URL}/approvals/${id}/reject`,
 };
 
 /* =======================

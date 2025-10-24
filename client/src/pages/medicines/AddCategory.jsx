@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API_ADD_CATEGORY = "http://localhost:5000/api/categories"; // server/app.js mounts /api/categories
+const API_ADD_CATEGORY = `${import.meta.env.VITE_API_URL}/categories`; // server/app.js mounts /api/categories
 const ROUTES = {
   list: "/dashboard/admin/medicines/category/list",
 };

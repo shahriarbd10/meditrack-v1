@@ -4,7 +4,7 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_PUBLIC_INV = "http://localhost:5000/api/pharmacy-inventory/public";
+const API_PUBLIC_INV = `${import.meta.env.VITE_API_URL}/pharmacy-inventory/public`;
 const PAGE_SIZE = 24;
 
 /**

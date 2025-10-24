@@ -5,13 +5,14 @@ import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
 const API = {
-  base: "http://localhost:5000/api/medicines",
-  categories: "http://localhost:5000/api/categories",
-  types: "http://localhost:5000/api/types",
-  units: "http://localhost:5000/api/units",
-  suppliers: "http://localhost:5000/api/suppliers",
-  leaf: "http://localhost:5000/api/leaf-settings",
+  base: `${import.meta.env.VITE_API_URL}/medicines`,
+  categories: `${import.meta.env.VITE_API_URL}/categories`,
+  types: `${import.meta.env.VITE_API_URL}/types`,
+  units: `${import.meta.env.VITE_API_URL}/units`,
+  suppliers: `${import.meta.env.VITE_API_URL}/suppliers`,
+  leaf: `${import.meta.env.VITE_API_URL}/leaf-settings`,
 };
+
 
 export default function EditMedicine() {
   const { id } = useParams();

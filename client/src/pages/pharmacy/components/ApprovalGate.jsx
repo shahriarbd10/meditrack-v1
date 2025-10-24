@@ -6,13 +6,17 @@ import axios from "axios";
    API Endpoints
 ======================= */
 const STATUS_API = (ownerId) =>
-  `http://localhost:5000/api/approvals/status/${ownerId}`;
+  `${import.meta.env.VITE_API_URL}/approvals/status/${ownerId}`;
+
 const PHARMACY_BY_OWNER_API = (ownerId) =>
-  `http://localhost:5000/api/pharmacies/by-owner/${ownerId}`; // latest doc
-const PHARMACY_RESUBMIT_API = `http://localhost:5000/api/pharmacies/resubmit`; // create-as-new (preferred)
-const PHARMACY_CREATE_API = `http://localhost:5000/api/pharmacies`; // generic create (fallback)
+  `${import.meta.env.VITE_API_URL}/pharmacies/by-owner/${ownerId}`; // latest doc
+
+const PHARMACY_RESUBMIT_API = `${import.meta.env.VITE_API_URL}/pharmacies/resubmit`; // create-as-new (preferred)
+
+const PHARMACY_CREATE_API = `${import.meta.env.VITE_API_URL}/pharmacies`; // generic create (fallback)
+
 const PHARMACY_UPDATE_API = (id) =>
-  `http://localhost:5000/api/pharmacies/${id}`; // legacy edit (final fallback)
+  `${import.meta.env.VITE_API_URL}/pharmacies/${id}`; // legacy edit (final fallback)
 
 /* =======================
    Helpers

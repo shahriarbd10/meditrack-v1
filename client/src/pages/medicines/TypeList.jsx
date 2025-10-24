@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import Sidebar from "../../components/Sidebar";
 
-const API = "http://localhost:5000/api/types";
+const API = `${import.meta.env.VITE_API_URL}/types`;
 
 function StatusBadge({ value }) {
   const isActive = value === "active";
