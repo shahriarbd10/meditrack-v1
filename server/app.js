@@ -61,13 +61,17 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+/* =======================
+   Uploads Directory
+======================= */
+const uploadsDir = path.join(__dirname, "uploads"); // points to server/uploads
+
 // Ensure uploads directory exists (for auth/logo, medicines, etc.)
-const uploadsDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Serve uploaded images (thumbnails, logos, etc.)
+// Serve uploaded images (thumbnails, logos, medicines, etc.)
 app.use("/uploads", express.static(uploadsDir));
 
 /* =======================
