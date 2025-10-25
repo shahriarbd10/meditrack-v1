@@ -87,8 +87,10 @@ export default function EditMedicine() {
   const currentImage = useMemo(() => {
     if (!form?.imageUrl) return "";
     if (/^https?:\/\//i.test(form.imageUrl)) return form.imageUrl;
-    return `http://localhost:5000${form.imageUrl}`;
+    const base = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    return `${base}${form.imageUrl.startsWith("/") ? form.imageUrl : `/${form.imageUrl}`}`;
   }, [form?.imageUrl]);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;

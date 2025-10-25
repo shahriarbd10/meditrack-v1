@@ -26,11 +26,13 @@ export default function MedicineDetails() {
     if (!medicine) return "";
     if (medicine.imageUrl) {
       if (/^https?:\/\//i.test(medicine.imageUrl)) return medicine.imageUrl;
-      return `http://localhost:5000${medicine.imageUrl}`;
+      const base = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      return `${base}${medicine.imageUrl.startsWith("/") ? medicine.imageUrl : `/${medicine.imageUrl}`}`;
     }
     if (medicine.picture) return medicine.picture;
     return "";
   }, [medicine]);
+
 
   const fmtMoney = (v) =>
     (Number(v) || 0).toLocaleString(undefined, {

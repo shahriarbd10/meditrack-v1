@@ -53,8 +53,9 @@ function InvCard({ row, onDelete, onUpdate }) {
   const img = m.imageUrl
     ? /^https?:\/\//i.test(m.imageUrl)
       ? m.imageUrl
-      : `http://localhost:5000${m.imageUrl}`
+      : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${m.imageUrl.startsWith("/") ? m.imageUrl : `/${m.imageUrl}`}`
     : "https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp";
+
 
   const [edit, setEdit] = useState({
     stock: row.stock ?? 0,
