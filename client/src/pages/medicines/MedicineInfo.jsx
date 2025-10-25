@@ -25,7 +25,7 @@ export default function MedicineInfo() {
     if (!medicine) return "";
     if (medicine.imageUrl) {
       if (/^https?:\/\//i.test(medicine.imageUrl)) return medicine.imageUrl;
-      const base = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
       return `${base}${medicine.imageUrl.startsWith("/") ? medicine.imageUrl : `/${medicine.imageUrl}`}`;
     }
     if (medicine.picture) return medicine.picture;

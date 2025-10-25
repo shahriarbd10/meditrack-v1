@@ -466,7 +466,7 @@ function MiniMedicineCard({ row }) {
   const makeAbsolute = (path) => {
     if (!path) return "";
     if (/^https?:\/\//i.test(path)) return path;
-    const base = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
     return `${base}${path.startsWith("/") ? path : `/${path}`}`;
   };
 

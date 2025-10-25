@@ -8,7 +8,7 @@ export default function MedicineCard({ medicine, onDelete }) {
     if (!medicine?.imageUrl) return "";
     if (/^https?:\/\//i.test(medicine.imageUrl)) return medicine.imageUrl;
     // served by server/app.js -> app.use("/uploads", express.static("uploads"))
-    return `${import.meta.env.VITE_API_URL || "http://localhost:5000"}${medicine.imageUrl}`;
+    return `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}${medicine.imageUrl}`;
   }, [medicine?.imageUrl]);
 
   const fmtMoney = (n) =>

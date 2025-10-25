@@ -83,7 +83,7 @@ export default function MedicineList() {
   const fullImage = (imageUrl) => {
     if (!imageUrl) return "";
     if (imageUrl.startsWith("http")) return imageUrl;
-    const base = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
     return `${base}${imageUrl.startsWith("/") ? imageUrl : `/${imageUrl}`}`;
   };
 

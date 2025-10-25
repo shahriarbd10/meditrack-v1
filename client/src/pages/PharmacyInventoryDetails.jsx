@@ -30,7 +30,7 @@ export default function PharmacyInventoryDetails() {
     const v = medicine?.imageUrl;
     if (!v) return "";
     if (/^https?:\/\//i.test(v)) return v;
-    const base = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    const base = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
     return `${base}${v.startsWith("/") ? v : `/${v}`}`;
   }, [medicine?.imageUrl]);
 
