@@ -1,12 +1,23 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="meditrack"> <!-- Pin DaisyUI to light theme -->
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Force light UI controls/scrollbars -->
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#0ea5a8" />
+
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React</title>
+    <title>MediTrack</title>
+
+    <style>
+      /* Belt-and-suspenders: neutralize system dark */
+      :root { color-scheme: light; }
+      @media (prefers-color-scheme: dark) { :root { color-scheme: light; } }
+    </style>
   </head>
-  <body>
+  <body class="bg-base-100 text-base-content">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

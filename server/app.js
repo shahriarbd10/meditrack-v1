@@ -41,9 +41,18 @@ const app = express();
 /* =======================
    Middleware
 ======================= */
+const allowedOrigins = process.env.ALLOWED_ORIGINS.split(",");
+
 app.use(
   cors({
-    origin: ["http://localhost:5173"], // Vite dev server
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // allow Postman or server requests
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS policy: This origin is not allowed"));
+      }
+    },
     credentials: true,
   })
 );
