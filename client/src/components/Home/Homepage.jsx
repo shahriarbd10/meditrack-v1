@@ -21,7 +21,7 @@ export default function Homepage() {
   const qRef = useRef(null);
   const [debouncedQ, setDebouncedQ] = useState("");
 
-  // Smooth-scroll helper (respects sticky navbar via scroll-mt on targets)
+  // Smooth-scroll helper (targets have scroll-mt)
   const scrollToId = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -52,7 +52,8 @@ export default function Homepage() {
         }
       } catch (e) {
         console.error(e);
-        if (!cancelled) setErr(e?.response?.data?.message || "Failed to load inventory");
+        if (!cancelled)
+          setErr(e?.response?.data?.message || "Failed to load inventory");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -66,8 +67,11 @@ export default function Homepage() {
   const handleNext = () => setPage((p) => Math.min(totalPages, p + 1));
 
   return (
-    <div data-theme="meditrack" className="min-h-screen flex flex-col bg-base-100 text-base-content">
-      {/* Background: mesh + gentle noise */}
+    <div
+      data-theme="meditrack"
+      className="min-h-screen flex flex-col bg-base-100 text-base-content"
+    >
+      {/* Background: mesh + noise */}
       <div aria-hidden="true" className="fixed inset-0 -z-20 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(1200px_650px_at_80%_-10%,rgba(124,58,237,0.10),transparent_60%),radial-gradient(900px_500px_at_10%_10%,rgba(14,165,233,0.12),transparent_55%),linear-gradient(to_bottom,#ffffff,rgba(246,249,252,1))]" />
         <div className="absolute inset-0 mix-blend-soft-light opacity-[0.12] [background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22 viewBox=%220 0 48 48%22><path d=%22M0 48L48 0M-12 36L36 -12M12 60L60 12%22 stroke=%22%23b0b7c3%22 stroke-width=%220.5%22 opacity=%220.4%22/></svg>')] bg-repeat" />
@@ -76,7 +80,11 @@ export default function Homepage() {
 
       {/* NAVBAR */}
       <header className="sticky top-0 z-50 border-b border-base-300/60 bg-base-100/75 backdrop-blur supports-[backdrop-filter]:bg-base-100/60">
-        <nav className="max-w-[1200px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between" role="navigation" aria-label="Primary">
+        <nav
+          className="max-w-[1200px] mx-auto px-4 md:px-6 h-16 flex items-center justify-between"
+          role="navigation"
+          aria-label="Primary"
+        >
           <div className="flex items-center gap-3">
             <Link
               to="/"
@@ -87,16 +95,35 @@ export default function Homepage() {
             </Link>
             {/* Desktop nav */}
             <div className="hidden md:flex items-center gap-5 ml-4 text-sm">
-              <button className="link link-hover text-base-content/80" onClick={() => scrollToId("features")}>Features</button>
-              <button className="link link-hover text-base-content/80" onClick={() => scrollToId("inventory")}>Inventory</button>
-              <button className="link link-hover text-base-content/80" onClick={() => scrollToId("contact")}>Contact</button>
+              <button
+                className="link link-hover text-base-content/80"
+                onClick={() => scrollToId("features")}
+              >
+                Features
+              </button>
+              <button
+                className="link link-hover text-base-content/80"
+                onClick={() => scrollToId("inventory")}
+              >
+                Inventory
+              </button>
+              <button
+                className="link link-hover text-base-content/80"
+                onClick={() => scrollToId("contact")}
+              >
+                Contact
+              </button>
             </div>
           </div>
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-2">
-            <Link to="/register?role=pharmacy" className="btn btn-ghost btn-sm">Register</Link>
-            <Link to="/login" className="btn btn-primary btn-sm">Login</Link>
+            <Link to="/register?role=pharmacy" className="btn btn-ghost btn-sm">
+              Register
+            </Link>
+            <Link to="/login" className="btn btn-primary btn-sm">
+              Login
+            </Link>
           </div>
 
           {/* Mobile hamburger */}
@@ -124,13 +151,49 @@ export default function Homepage() {
               className="md:hidden border-t border-base-300 bg-base-100"
             >
               <div className="max-w-[1200px] mx-auto px-4 py-3 flex flex-col gap-2">
-                <button className="btn btn-ghost justify-start" onClick={() => { scrollToId("features"); closeMenu(); }}>Features</button>
-                <button className="btn btn-ghost justify-start" onClick={() => { scrollToId("inventory"); closeMenu(); }}>Inventory</button>
-                <button className="btn btn-ghost justify-start" onClick={() => { scrollToId("contact"); closeMenu(); }}>Contact</button>
+                <button
+                  className="btn btn-ghost justify-start"
+                  onClick={() => {
+                    scrollToId("features");
+                    closeMenu();
+                  }}
+                >
+                  Features
+                </button>
+                <button
+                  className="btn btn-ghost justify-start"
+                  onClick={() => {
+                    scrollToId("inventory");
+                    closeMenu();
+                  }}
+                >
+                  Inventory
+                </button>
+                <button
+                  className="btn btn-ghost justify-start"
+                  onClick={() => {
+                    scrollToId("contact");
+                    closeMenu();
+                  }}
+                >
+                  Contact
+                </button>
                 <div className="divider my-2" />
                 <div className="flex gap-2">
-                  <NavLink to="/register?role=pharmacy" className="btn btn-ghost flex-1" onClick={closeMenu}>Register</NavLink>
-                  <NavLink to="/login" className="btn btn-primary flex-1" onClick={closeMenu}>Login</NavLink>
+                  <NavLink
+                    to="/register?role=pharmacy"
+                    className="btn btn-ghost flex-1"
+                    onClick={closeMenu}
+                  >
+                    Register
+                  </NavLink>
+                  <NavLink
+                    to="/login"
+                    className="btn btn-primary flex-1"
+                    onClick={closeMenu}
+                  >
+                    Login
+                  </NavLink>
                 </div>
               </div>
             </motion.div>
@@ -138,7 +201,7 @@ export default function Homepage() {
         </AnimatePresence>
       </header>
 
-      {/* HERO (elevated with mixed-color glow) */}
+      {/* HERO */}
       <section className="relative overflow-hidden">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-16 md:py-20">
           <motion.div
@@ -152,13 +215,19 @@ export default function Homepage() {
               <span className="inline-flex items-center gap-2 text-xs px-3 py-1 rounded-full border border-base-300 bg-base-200/60">
                 <SparkleIcon /> Modern SaaS experience for Pharmacies
               </span>
+
               <h1 className="mt-4 text-4xl md:text-5xl font-black leading-tight">
                 Pharmacy Management,{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Simplified</span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
+                  Simplified
+                </span>
               </h1>
+
               <p className="max-w-2xl mx-auto mt-4 text-base md:text-lg text-base-content/70">
-                Add medicines, track inventory, manage staff, and monitor sales — in one secure, modern dashboard.
+                Add medicines, track inventory, manage staff, and monitor sales
+                — in one secure, modern dashboard.
               </p>
+
               <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
                 <Link to="/register?role=pharmacy" className="btn btn-primary btn-lg">
                   <PlusIcon /> Create Your Pharmacy
@@ -168,25 +237,34 @@ export default function Homepage() {
                 </Link>
               </div>
 
-              {/* trust chips */}
-              <div className="mt-8 grid grid-cols-3 max-w-md mx-auto gap-3 text-sm text-base-content/70">
-                <div className="rounded-box border border-base-300 bg-base-100 px-3 py-2 shadow-[0_6px_16px_rgba(79,70,229,0.07)]">
-                  <span className="font-semibold text-base-content">99.9%</span> Uptime
-                </div>
-                <div className="rounded-box border border-base-300 bg-base-100 px-3 py-2 shadow-[0_6px_16px_rgba(14,165,233,0.08)]">
-                  <span className="font-semibold text-base-content">Role-based</span> Access
-                </div>
-                <div className="rounded-box border border-base-300 bg-base-100 px-3 py-2 shadow-[0_6px_16px_rgba(236,72,153,0.08)]">
-                  <span className="font-semibold text-base-content">Fast</span> Search
-                </div>
+              {/* Trust chips – responsive, no overflow */}
+              <div className="mt-8 max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <TrustStat
+                  icon={<ClockIcon />}
+                  title="99.9%"
+                  subtitle="Uptime"
+                />
+                <TrustStat
+                  icon={<ShieldSmallIcon />}
+                  title="Role-based"
+                  subtitle="Access"
+                />
+                <TrustStat
+                  icon={<SearchSmallIcon />}
+                  title="Fast"
+                  subtitle="Search"
+                />
               </div>
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* FEATURES (target with scroll margin for sticky header) */}
-      <section id="features" className="scroll-mt-24 bg-base-200/60 border-y border-base-300">
+      {/* FEATURES */}
+      <section
+        id="features"
+        className="scroll-mt-24 bg-base-200/60 border-y border-base-300"
+      >
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-10 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Feature icon={<MedicalIcon />} title="Healthcare-ready">
             GMP-compliant flow, expiry badges, and clear stock units.
@@ -206,7 +284,10 @@ export default function Homepage() {
           <div className="rounded-xl border border-base-300/70 bg-base-100/80 p-3 md:p-4 shadow-[0_6px_20px_rgba(20,40,80,0.05)]">
             <div className="flex flex-col md:flex-row gap-3 md:gap-4 md:items-center">
               <div className="form-control w-full md:flex-1">
-                <label className="input input-bordered flex items-center gap-2" htmlFor="search-meds">
+                <label
+                  className="input input-bordered flex items-center gap-2"
+                  htmlFor="search-meds"
+                >
                   <SearchIcon />
                   <input
                     id="search-meds"
@@ -264,12 +345,18 @@ export default function Homepage() {
                     setPage(1);
                   }}
                   aria-label="Toggle sort direction"
-                  title={`Sort ${sortDir === "asc" ? "ascending" : "descending"}`}
+                  title={`Sort ${
+                    sortDir === "asc" ? "ascending" : "descending"
+                  }`}
                 >
                   {sortDir === "asc" ? (
-                    <span className="flex items-center gap-1">Asc <ArrowUpIcon /></span>
+                    <span className="flex items-center gap-1">
+                      Asc <ArrowUpIcon />
+                    </span>
                   ) : (
-                    <span className="flex items-center gap-1">Desc <ArrowDownIcon /></span>
+                    <span className="flex items-center gap-1">
+                      Desc <ArrowDownIcon />
+                    </span>
                   )}
                 </button>
               </div>
@@ -278,11 +365,13 @@ export default function Homepage() {
         </div>
       </section>
 
-      {/* INVENTORY GRID (target) */}
+      {/* INVENTORY GRID */}
       <main id="inventory" className="scroll-mt-24 flex-grow bg-base-100">
         <section className="max-w-[1200px] mx-auto px-4 md:px-6 py-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl md:text-3xl font-semibold">Available Medicines</h2>
+            <h2 className="text-2xl md:text-3xl font-semibold">
+              Available Medicines
+            </h2>
             <span className="hidden sm:inline text-xs text-base-content/60">
               Page {page} of {totalPages}
             </span>
@@ -291,10 +380,15 @@ export default function Homepage() {
           {loading ? (
             <GridSkeleton />
           ) : err ? (
-            <div role="alert" className="alert alert-error justify-between flex-col sm:flex-row gap-3">
+            <div
+              role="alert"
+              className="alert alert-error justify-between flex-col sm:flex-row gap-3"
+            >
               <span>{err}</span>
               <div className="flex gap-2">
-                <button className="btn btn-sm" onClick={() => setPage((p) => p)}>Retry</button>
+                <button className="btn btn-sm" onClick={() => setPage((p) => p)}>
+                  Retry
+                </button>
                 <button
                   className="btn btn-outline btn-sm"
                   onClick={() => {
@@ -309,10 +403,18 @@ export default function Homepage() {
               </div>
             </div>
           ) : rows.length === 0 ? (
-            <EmptyState onReset={() => { setQ(""); setPage(1); }} />
+            <EmptyState
+              onReset={() => {
+                setQ("");
+                setPage(1);
+              }}
+            />
           ) : (
             <>
-              <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <motion.div
+                layout
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"
+              >
                 <AnimatePresence initial={false}>
                   {rows.map((row) => (
                     <motion.div
@@ -329,12 +431,32 @@ export default function Homepage() {
                 </AnimatePresence>
               </motion.div>
 
-              <nav className="flex justify-center mt-8 gap-2" role="navigation" aria-label="Pagination">
-                <button onClick={handlePrev} disabled={page === 1} className="btn btn-outline btn-sm">« Prev</button>
-                <span aria-live="polite" className="btn btn-disabled btn-sm" title={`Page ${page} of ${totalPages}`}>
+              <nav
+                className="flex justify-center mt-8 gap-2"
+                role="navigation"
+                aria-label="Pagination"
+              >
+                <button
+                  onClick={handlePrev}
+                  disabled={page === 1}
+                  className="btn btn-outline btn-sm"
+                >
+                  « Prev
+                </button>
+                <span
+                  aria-live="polite"
+                  className="btn btn-disabled btn-sm"
+                  title={`Page ${page} of ${totalPages}`}
+                >
                   Page {page} of {totalPages}
                 </span>
-                <button onClick={handleNext} disabled={page === totalPages} className="btn btn-outline btn-sm">Next »</button>
+                <button
+                  onClick={handleNext}
+                  disabled={page === totalPages}
+                  className="btn btn-outline btn-sm"
+                >
+                  Next »
+                </button>
               </nav>
             </>
           )}
@@ -344,8 +466,13 @@ export default function Homepage() {
       {/* CTA BANNER */}
       <section className="bg-gradient-to-r from-base-200/80 to-base-100/80 border-y border-base-300">
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-10 text-center">
-          <h3 className="text-xl md:text-2xl font-bold">Ready to streamline your pharmacy?</h3>
-          <p className="text-base-content/70 mt-2">Start free today. Add products, invite staff, and get selling in minutes.</p>
+          <h3 className="text-xl md:text-2xl font-bold">
+            Ready to streamline your pharmacy?
+          </h3>
+          <p className="text-base-content/70 mt-2">
+            Start free today. Add products, invite staff, and get selling in
+            minutes.
+          </p>
           <div className="mt-5">
             <Link to="/register?role=pharmacy" className="btn btn-primary btn-md">
               <RocketIcon /> Create Account
@@ -354,14 +481,20 @@ export default function Homepage() {
         </div>
       </section>
 
-      {/* FOOTER (target) */}
-      <footer id="contact" className="scroll-mt-24 border-t border-base-300 bg-base-100/90 backdrop-blur">
+      {/* FOOTER */}
+      <footer
+        id="contact"
+        className="scroll-mt-24 border-t border-base-300 bg-base-100/90 backdrop-blur"
+      >
         <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div>
-            <Link to="/" className="font-black text-xl text-primary">MediTrack</Link>
+            <Link to="/" className="font-black text-xl text-primary">
+              MediTrack
+            </Link>
             <p className="mt-3 text-sm text-base-content/70">
-              A modern pharmacy management platform for inventory, teams, and sales — built for reliability and speed.
+              A modern pharmacy management platform for inventory, teams, and
+              sales — built for reliability and speed.
             </p>
           </div>
 
@@ -369,10 +502,32 @@ export default function Homepage() {
           <div>
             <h4 className="font-semibold mb-3">Product</h4>
             <ul className="space-y-2 text-sm">
-              <li><button className="link link-hover" onClick={() => scrollToId("features")}>Features</button></li>
-              <li><button className="link link-hover" onClick={() => scrollToId("inventory")}>Inventory</button></li>
-              <li><Link to="/login" className="link link-hover">Login</Link></li>
-              <li><Link to="/register?role=pharmacy" className="link link-hover">Register</Link></li>
+              <li>
+                <button
+                  className="link link-hover"
+                  onClick={() => scrollToId("features")}
+                >
+                  Features
+                </button>
+              </li>
+              <li>
+                <button
+                  className="link link-hover"
+                  onClick={() => scrollToId("inventory")}
+                >
+                  Inventory
+                </button>
+              </li>
+              <li>
+                <Link to="/login" className="link link-hover">
+                  Login
+                </Link>
+              </li>
+              <li>
+                <Link to="/register?role=pharmacy" className="link link-hover">
+                  Register
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -380,9 +535,15 @@ export default function Homepage() {
           <div>
             <h4 className="font-semibold mb-3">Resources</h4>
             <ul className="space-y-2 text-sm">
-              <li><span className="link link-hover">Docs (coming soon)</span></li>
-              <li><span className="link link-hover">Status</span></li>
-              <li><span className="link link-hover">Support</span></li>
+              <li>
+                <span className="link link-hover">Docs (coming soon)</span>
+              </li>
+              <li>
+                <span className="link link-hover">Status</span>
+              </li>
+              <li>
+                <span className="link link-hover">Support</span>
+              </li>
             </ul>
           </div>
 
@@ -390,21 +551,35 @@ export default function Homepage() {
           <div>
             <h4 className="font-semibold mb-3">Contact</h4>
             <ul className="space-y-2 text-sm">
-              <li><span className="link link-hover">hello@meditrack.app</span></li>
-              <li className="flex items-center gap-2"><MapPinIcon /> Dhaka, Bangladesh</li>
-              <li className="flex items-center gap-2"><ShieldIcon /> Role-based Access</li>
+              <li>
+                <span className="link link-hover">hello@meditrack.app</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <MapPinIcon /> Dhaka, Bangladesh
+              </li>
+              <li className="flex items-center gap-2">
+                <ShieldIcon /> Role-based Access
+              </li>
             </ul>
             <div className="mt-4 flex gap-3">
-              <a aria-label="Twitter" className="btn btn-ghost btn-sm px-2"><TwitterIcon /></a>
-              <a aria-label="LinkedIn" className="btn btn-ghost btn-sm px-2"><LinkedInIcon /></a>
-              <a aria-label="GitHub" className="btn btn-ghost btn-sm px-2"><GitHubIcon /></a>
+              <a aria-label="Twitter" className="btn btn-ghost btn-sm px-2">
+                <TwitterIcon />
+              </a>
+              <a aria-label="LinkedIn" className="btn btn-ghost btn-sm px-2">
+                <LinkedInIcon />
+              </a>
+              <a aria-label="GitHub" className="btn btn-ghost btn-sm px-2">
+                <GitHubIcon />
+              </a>
             </div>
           </div>
         </div>
 
         <div className="border-t border-base-300">
           <div className="max-w-[1200px] mx-auto px-4 md:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p className="text-xs text-base-content/70">© {new Date().getFullYear()} MediTrack. All rights reserved.</p>
+            <p className="text-xs text-base-content/70">
+              © {new Date().getFullYear()} MediTrack. All rights reserved.
+            </p>
             <div className="text-xs text-base-content/60 flex items-center gap-3">
               <a className="link link-hover">Privacy</a>
               <span>•</span>
@@ -415,6 +590,23 @@ export default function Homepage() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/* ---------- Reusable "trust chip" card ---------- */
+function TrustStat({ icon, title, subtitle }) {
+  return (
+    <div className="rounded-xl border border-base-300 bg-base-100/95 shadow-[0_8px_22px_rgba(14,165,233,0.06),0_4px_14px_rgba(79,70,229,0.06)] px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span className="shrink-0 text-base-content/70">{icon}</span>
+        <div className="flex-1 min-w-0 leading-tight">
+          <div className="font-semibold">{title}</div>
+          {subtitle ? (
+            <div className="text-xs text-base-content/60">{subtitle}</div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -442,12 +634,23 @@ function Feature({ icon, title, children }) {
   );
 }
 
-/* Icons (pure SVGs – no external packages) */
+/* Icons */
 function SearchIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-      className="text-base-content/60" aria-hidden="true" focusable="false">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-base-content/60"
+      aria-hidden="true"
+      focusable="false"
+    >
       <circle cx="11" cy="11" r="8"></circle>
       <path d="m21 21-4.3-4.3"></path>
     </svg>
@@ -455,30 +658,68 @@ function SearchIcon() {
 }
 function ArrowUpIcon() {
   return (
-    <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" className="inline-block"
-      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      className="inline-block"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="m5 15 7-7 7 7" />
     </svg>
   );
 }
 function ArrowDownIcon() {
   return (
-    <svg aria-hidden="true" focusable="false" width="14" height="14" viewBox="0 0 24 24" className="inline-block"
-      fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      className="inline-block"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="m19 9-7 7-7-7" />
     </svg>
   );
 }
 function MenuIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" className="inline-block" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      className="inline-block"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M4 6h16M4 12h16M4 18h16" />
     </svg>
   );
 }
 function CloseIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" className="inline-block" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      className="inline-block"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
       <path d="M18 6L6 18M6 6l12 12" />
     </svg>
   );
@@ -575,13 +816,43 @@ function SparkleIcon() {
     </svg>
   );
 }
+function ClockIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 3" />
+    </svg>
+  );
+}
+function ShieldSmallIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+function SearchSmallIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
 
 /* Skeletons & Empty state */
 function GridSkeleton() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3" aria-label="Loading products">
+    <div
+      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"
+      aria-label="Loading products"
+    >
       {Array.from({ length: 12 }).map((_, i) => (
-        <div key={i} className="card bg-base-100/95 border border-base-200 shadow-[0_8px_22px_rgba(14,165,233,0.06),0_4px_14px_rgba(79,70,229,0.06)]" aria-hidden="true">
+        <div
+          key={i}
+          className="card bg-base-100/95 border border-base-200 shadow-[0_8px_22px_rgba(14,165,233,0.06),0_4px_14px_rgba(79,70,229,0.06)]"
+          aria-hidden="true"
+        >
           <div className="h-28 w-full bg-base-200 animate-pulse rounded-t-md" />
           <div className="p-3 space-y-2">
             <div className="h-3 w-2/3 bg-base-200 animate-pulse rounded" />
@@ -613,10 +884,13 @@ function EmptyState({ onReset }) {
 /* Currency */
 function fmtBDT(n) {
   const num = Number(n) || 0;
-  return `৳${num.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `৳${num.toLocaleString("en-BD", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
-/* Product card */
+/* Product card (homepage mini) */
 function MiniMedicineCard({ row }) {
   const m = row?.medicine || {};
   const p = row?.pharmacy || {};
@@ -628,15 +902,22 @@ function MiniMedicineCard({ row }) {
     return `${base}${path.startsWith("/") ? path : `/${path}`}`;
   };
 
-  const imgSrc = makeAbsolute(m?.imageUrl) || "https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp";
+  const imgSrc =
+    makeAbsolute(m?.imageUrl) ||
+    "https://img.daisyui.com/images/stock/photo-1606107557195-0e29a4b5b4aa.webp";
+
   const name = m?.name || "—";
   const generic = m?.genericName || "—";
   const unit = m?.unit || "";
   const strength = m?.strength || m?.amount || "";
   const vat = Number(row?.vat ?? m?.vat ?? 0) || 0;
 
-  const expiryStr = row?.expiryDate ? new Date(row.expiryDate).toLocaleDateString() : "";
-  const isExpired = row?.expiryDate ? new Date(row.expiryDate) < new Date() : false;
+  const expiryStr = row?.expiryDate
+    ? new Date(row.expiryDate).toLocaleDateString()
+    : "";
+  const isExpired = row?.expiryDate
+    ? new Date(row.expiryDate) < new Date()
+    : false;
 
   const pharmacyName = p?.pharmacyName || "Pharmacy";
   const pharmacyLoc =
@@ -645,7 +926,10 @@ function MiniMedicineCard({ row }) {
       : "";
 
   return (
-    <article className="group card bg-base-100/95 w-full max-w-[250px] border border-base-200 rounded-xl overflow-hidden shadow-[0_10px_26px_rgba(79,70,229,0.06),0_6px_18px_rgba(14,165,233,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(79,70,229,0.10),0_10px_26px_rgba(14,165,233,0.10)] focus-within:shadow-[0_14px_30px_rgba(79,70,229,0.10),0_10px_26px_rgba(14,165,233,0.10)]">
+    <article
+      className="group card bg-base-100/95 w-full max-w-[250px] border border-base-200 rounded-xl overflow-hidden shadow-[0_10px_26px_rgba(79,70,229,0.06),0_6px_18px_rgba(14,165,233,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(79,70,229,0.10),0_10px_26px_rgba(14,165,233,0.10)] focus-within:shadow-[0_14px_30px_rgba(79,70,229,0.10),0_10px_26px_rgba(14,165,233,0.10)]"
+      title={name}
+    >
       <figure className="relative overflow-hidden">
         <img
           src={imgSrc}
@@ -653,19 +937,36 @@ function MiniMedicineCard({ row }) {
           className="h-32 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           loading="lazy"
         />
-        {unit && <span className="badge badge-neutral absolute left-2 top-2">{unit}</span>}
+
+        {/* top-left: Unit/Type */}
+        {unit && (
+          <span className="badge badge-neutral absolute left-2 top-2">
+            {unit}
+          </span>
+        )}
+
+        {/* top-right: Expiry */}
         {row?.expiryDate && (
-          <span className={`badge absolute right-2 top-2 ${isExpired ? "badge-error" : "badge-warning"}`}>
+          <span
+            className={`badge absolute right-2 top-2 ${
+              isExpired ? "badge-error" : "badge-warning"
+            }`}
+            title={`Expiry: ${expiryStr}`}
+          >
             {isExpired ? "Expired" : "Expiry"}: {expiryStr}
           </span>
         )}
       </figure>
+
       <div className="card-body p-3">
-        <h3 className="card-title text-sm leading-tight truncate" title={name}>{name}</h3>
-        <div className="text-xs text-base-content/70 truncate" title={`Generic: ${generic}`}>{generic}</div>
+        <h3 className="card-title text-sm leading-tight truncate">{name}</h3>
+        <div className="text-xs text-base-content/70 truncate">{generic}</div>
 
         {/* Pharmacy line */}
-        <div className="mt-2 text-[11px] text-base-content/70 truncate" title={pharmacyName}>
+        <div
+          className="mt-2 text-[11px] text-base-content/70 truncate"
+          title={pharmacyName}
+        >
           🏪 <span className="font-medium">{pharmacyName}</span>
           {pharmacyLoc ? <span className="opacity-70"> • {pharmacyLoc}</span> : null}
         </div>

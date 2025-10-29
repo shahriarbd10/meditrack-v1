@@ -3,11 +3,9 @@ import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 
 export default function MedicineCard({ medicine, onDelete }) {
-  // build image src (supports /uploads path or absolute urls)
   const imgSrc = useMemo(() => {
     if (!medicine?.imageUrl) return "";
     if (/^https?:\/\//i.test(medicine.imageUrl)) return medicine.imageUrl;
-    // served by server/app.js -> app.use("/uploads", express.static("uploads"))
     return `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}${medicine.imageUrl}`;
   }, [medicine?.imageUrl]);
 
@@ -34,9 +32,7 @@ export default function MedicineCard({ medicine, onDelete }) {
         transition-all duration-200
       "
     >
-      {/* Image */}
-      <figure className="relative overflow-hidden bg-base-200">
-        {/* Keep consistent aspect to align all cards */}
+      <figure className="relative bg-base-200">
         <div className="w-full aspect-[16/10]">
           {imgSrc ? (
             <img
@@ -52,42 +48,28 @@ export default function MedicineCard({ medicine, onDelete }) {
           )}
         </div>
 
-        {/* Top overlay row: unit/status (left) + expiry (right) */}
+        {/* overlay row: unit/status + expiry */}
         <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-2 pointer-events-none">
           <div className="flex items-center gap-2 pointer-events-auto">
-            {medicine?.unit && (
-              <span className="badge badge-neutral shadow-sm"> {medicine.unit} </span>
-            )}
-            <span
-              className={`badge ${
-                status === "active" ? "badge-success" : "badge-ghost"
-              } shadow-sm`}
-              title={`Status: ${status}`}
-            >
+            {medicine?.unit && <span className="badge badge-neutral shadow-sm">{medicine.unit}</span>}
+            <span className={`badge ${status === "active" ? "badge-success" : "badge-ghost"} shadow-sm`}>
               {status === "active" ? "Active" : "Inactive"}
             </span>
           </div>
-
           {expiryDate && (
-            <span
-              className={`badge ${
-                isExpired ? "badge-error" : "badge-warning"
-              } shadow-sm pointer-events-auto`}
-              title={`Expiry: ${expiryStr}`}
-            >
+            <span className={`badge ${isExpired ? "badge-error" : "badge-warning"} shadow-sm pointer-events-auto`}>
               {isExpired ? "Expired" : "Expiry"}: {expiryStr}
             </span>
           )}
         </div>
       </figure>
 
-      {/* Body */}
       <div className="card-body p-5">
-        {/* Title */}
         <div className="flex items-start justify-between gap-2">
           <h2 className="card-title leading-tight text-base md:text-lg truncate">
             {medicine?.name || "—"}
           </h2>
+          {medicine?.unit && <span className="badge badge-neutral">{medicine.unit}</span>}
         </div>
 
         {medicine?.genericName && (
@@ -96,7 +78,6 @@ export default function MedicineCard({ medicine, onDelete }) {
           </div>
         )}
 
-        {/* Facts grid */}
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <Fact label="Category" value={medicine?.category} />
           <Fact label="Supplier" value={medicine?.supplier} />
@@ -106,58 +87,23 @@ export default function MedicineCard({ medicine, onDelete }) {
           <Fact label="Barcode" value={medicine?.barcode} />
         </div>
 
-        {/* Price block */}
-        <div
-          className="
-            mt-4 rounded-xl border border-base-200 p-3
-            shadow-[0_6px_18px_rgba(20,40,80,0.04)]
-            bg-gradient-to-br from-base-100 via-base-100 to-base-200/40
-          "
-        >
+        <div className="mt-4 rounded-xl border border-base-200 p-3 shadow-[0_6px_18px_rgba(20,40,80,0.04)] bg-gradient-to-br from-base-100 via-base-100 to-base-200/40">
           <div className="flex items-center justify-between">
             <div className="text-sm text-base-content/70">Price</div>
-            {vat > 0 && (
-              <span className="badge badge-outline" title="VAT percentage">
-                VAT {vat.toFixed(0)}%
-              </span>
-            )}
+            {vat > 0 && <span className="badge badge-outline">VAT {vat.toFixed(0)}%</span>}
           </div>
-          <div className="mt-1 text-xl font-semibold">
-            ${fmtMoney(medicine?.price)}
-          </div>
+          <div className="mt-1 text-xl font-semibold">${fmtMoney(medicine?.price)}</div>
           <div className="mt-2 flex items-center justify-between text-xs text-base-content/70">
             <span>Supplier Price</span>
-            <span className="font-medium">
-              ${fmtMoney(medicine?.supplierPrice)}
-            </span>
+            <span className="font-medium">${fmtMoney(medicine?.supplierPrice)}</span>
           </div>
         </div>
 
-        {/* Actions */}
         <div className="card-actions mt-4 justify-between">
-          <Link
-            to={`/medicine-details/${medicine?._id}`}
-            className="btn btn-sm btn-info"
-            title="View details"
-            aria-label={`View details of ${medicine?.name || "medicine"}`}
-          >
-            Details
-          </Link>
+          <Link to={`/medicine-details/${medicine?._id}`} className="btn btn-sm btn-info">Details</Link>
           <div className="flex gap-2">
-            <Link
-              to={`/edit-medicine/${medicine?._id}`}
-              className="btn btn-sm btn-primary"
-              title="Edit medicine"
-            >
-              Edit
-            </Link>
-            <button
-              onClick={() => onDelete?.(medicine?._id)}
-              className="btn btn-sm btn-error"
-              title="Delete medicine"
-            >
-              Delete
-            </button>
+            <Link to={`/edit-medicine/${medicine?._id}`} className="btn btn-sm btn-primary">Edit</Link>
+            <button onClick={() => onDelete?.(medicine?._id)} className="btn btn-sm btn-error">Delete</button>
           </div>
         </div>
       </div>
@@ -165,24 +111,19 @@ export default function MedicineCard({ medicine, onDelete }) {
   );
 }
 
-/* Small helper to keep rows tidy */
 function Fact({ label, value }) {
-  if (!value) return (
-    <div>
-      <div className="text-[11px] uppercase tracking-wide text-base-content/60">
-        {label}
+  if (!value) {
+    return (
+      <div>
+        <div className="text-[11px] uppercase tracking-wide text-base-content/60">{label}</div>
+        <div className="opacity-60">—</div>
       </div>
-      <div className="opacity-60">—</div>
-    </div>
-  );
+    );
+  }
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-base-content/60">
-        {label}
-      </div>
-      <div className="font-medium truncate" title={String(value)}>
-        {value}
-      </div>
+      <div className="text-[11px] uppercase tracking-wide text-base-content/60">{label}</div>
+      <div className="font-medium truncate" title={String(value)}>{value}</div>
     </div>
   );
 }
